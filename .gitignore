@@ -1,0 +1,23 @@
+node_modules
+coverage
+coverage.json
+settings.json
+typechain
+typechain-types
+remix-compiler.config.js
+.env
+scripts/*
+!scripts/
+!scripts/deploy.js
+!scripts/settings.json
+*_flat.sol
+
+
+
+
+
+
+#Hardhat files
+cache
+artifacts
+test
