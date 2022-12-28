@@ -118,10 +118,11 @@ contract VRF {
 
     // (base^exponent) % FIELD_SIZE
     // Cribbed from https://medium.com/@rbkhmrcr/precompiles-solidity-e5d29bd428c4
-    function bigModExp(
-        uint256 base,
-        uint256 exponent
-    ) internal view returns (uint256 exponentiation) {
+    function bigModExp(uint256 base, uint256 exponent)
+        internal
+        view
+        returns (uint256 exponentiation)
+    {
         uint256 callResult;
         uint256[6] memory bigModExpContractInputs;
         bigModExpContractInputs[0] = WORD_LENGTH_BYTES; // Length of base
@@ -190,9 +191,11 @@ contract VRF {
     // step 5.C, which references arbitrary_string_to_point, defined in
     // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-vrf-05#section-5.5 as
     // returning the point with given x ordinate, and even y ordinate.
-    function newCandidateSecp256k1Point(
-        bytes memory b
-    ) internal view returns (uint256[2] memory p) {
+    function newCandidateSecp256k1Point(bytes memory b)
+        internal
+        view
+        returns (uint256[2] memory p)
+    {
         unchecked {
             p[0] = fieldHash(b);
             p[1] = squareRoot(ySquared(p[0]));
@@ -222,10 +225,11 @@ contract VRF {
     //
     // This would greatly simplify the analysis in "OTHER SECURITY CONSIDERATIONS"
     // https://www.pivotaltracker.com/story/show/171120900
-    function hashToCurve(
-        uint256[2] memory pk,
-        uint256 input
-    ) internal view returns (uint256[2] memory rv) {
+    function hashToCurve(uint256[2] memory pk, uint256 input)
+        internal
+        view
+        returns (uint256[2] memory rv)
+    {
         rv = newCandidateSecp256k1Point(
             abi.encodePacked(HASH_TO_CURVE_HASH_PREFIX, pk, input)
         );
@@ -326,7 +330,15 @@ contract VRF {
         uint256 py,
         uint256 qx,
         uint256 qy
-    ) internal pure returns (uint256 sx, uint256 sy, uint256 sz) {
+    )
+        internal
+        pure
+        returns (
+            uint256 sx,
+            uint256 sy,
+            uint256 sz
+        )
+    {
         unchecked {
             // See "Group law for E/K : y^2 = x^3 + ax + b", in section 3.1.2, p. 80,
             // "Guide to Elliptic Curve Cryptography" by Hankerson, Menezes and Vanstone
@@ -574,10 +586,11 @@ contract VRF {
      * @return output i.e., the random output implied by the proof
      * ***************************************************************************
      */
-    function randomValueFromVRFProof(
-        Proof memory proof,
-        uint256 seed
-    ) internal view returns (uint256 output) {
+    function randomValueFromVRFProof(Proof memory proof, uint256 seed)
+        internal
+        view
+        returns (uint256 output)
+    {
         verifyVRFProof(
             proof.pk,
             proof.gamma,

@@ -167,16 +167,18 @@ contract MockVRFCoordinatorV2 is
         public s_subscriptionConfigs;
     mapping(uint64 => Subscription) /* subId */ /* subscription */
         public s_subscriptions;
-    mapping(bytes32 => address) /* keyHash */ /* oracle */ public s_provingKeys;
+    mapping(bytes32 => address) /* keyHash */ /* oracle */
+        public s_provingKeys;
     bytes32[] public s_provingKeyHashes;
     mapping(uint256 => bytes32) /* requestID */ /* commitment */
         public s_requestCommitments;
-    mapping(bytes32 => uint256) /* keyhash */ /* gasprice */ public s_gasPrice;
+    mapping(bytes32 => uint256) /* keyhash */ /* gasprice */
+        public s_gasPrice;
 
-    function initialize(
-        uint16 maxconsumer,
-        address blockhashStore
-    ) public initializer {
+    function initialize(uint16 maxconsumer, address blockhashStore)
+        public
+        initializer
+    {
         __Ownable2Step_init();
         MAX_CONSUMERS = maxconsumer;
         BLOCKHASH_STORE = BlockhashStoreInterface(blockhashStore);
@@ -209,9 +211,10 @@ contract MockVRFCoordinatorV2 is
      * @notice Deregisters a proving key to an oracle.
      * @param publicProvingKey key that oracle can use to submit vrf fulfillments
      */
-    function deregisterProvingKey(
-        uint256[2] calldata publicProvingKey
-    ) external onlyOwner {
+    function deregisterProvingKey(uint256[2] calldata publicProvingKey)
+        external
+        onlyOwner
+    {
         bytes32 kh = hashOfKey(publicProvingKey);
         address oracle = s_provingKeys[kh];
         if (oracle == address(0)) {
@@ -236,9 +239,11 @@ contract MockVRFCoordinatorV2 is
      * @notice Returns the proving key hash key associated with this public key
      * @param publicKey the key to return the hash of
      */
-    function hashOfKey(
-        uint256[2] memory publicKey
-    ) public pure returns (bytes32) {
+    function hashOfKey(uint256[2] memory publicKey)
+        public
+        pure
+        returns (bytes32)
+    {
         return keccak256(abi.encode(publicKey));
     }
 
@@ -366,9 +371,12 @@ contract MockVRFCoordinatorV2 is
      * @dev Looping is bounded to MAX_CONSUMERS*(number of keyhashes).
      * @dev Used to disable subscription canceling while outstanding request are present.
      */
-    function pendingRequestExists(
-        uint64 subId
-    ) public view override returns (bool) {
+    function pendingRequestExists(uint64 subId)
+        public
+        view
+        override
+        returns (bool)
+    {
         SubscriptionConfig memory subConfig = s_subscriptionConfigs[subId];
         for (uint256 i = 0; i < subConfig.consumers.length; i++) {
             for (uint256 j = 0; j < s_provingKeyHashes.length; j++) {
@@ -393,7 +401,11 @@ contract MockVRFCoordinatorV2 is
         external
         view
         override
-        returns (uint16, uint32, bytes32[] memory)
+        returns (
+            uint16,
+            uint32,
+            bytes32[] memory
+        )
     {
         return (
             s_config.minimumRequestConfirmations,
@@ -544,7 +556,11 @@ contract MockVRFCoordinatorV2 is
     )
         private
         view
-        returns (bytes32 keyHash, uint256 requestId, uint256 randomness)
+        returns (
+            bytes32 keyHash,
+            uint256 requestId,
+            uint256 randomness
+        )
     {
         keyHash = hashOfKey(proof.pk);
         // Only registered proving keys are permitted.
@@ -588,26 +604,24 @@ contract MockVRFCoordinatorV2 is
         randomness = VRF.randomValueFromVRFProof(proof, actualSeed); // Reverts on failure
     }
 
-    /*
+    /**
      * @notice Compute fee based on the request count
      * @param reqCount number of requests
      * @return fee in OKT
      */
     function getFeeTier(uint64 reqCount) public view returns (uint32) {
         FeeConfig memory fc = s_feeConfig;
-        if (0 <= reqCount && reqCount <= fc.reqsForTier2) {
+        if (reqCount <= fc.reqsForTier2) {
             return fc.fulfillmentFlatFeeOKTTier1;
-        }
-        if (fc.reqsForTier2 < reqCount && reqCount <= fc.reqsForTier3) {
+        } else if (reqCount <= fc.reqsForTier3) {
             return fc.fulfillmentFlatFeeOKTTier2;
-        }
-        if (fc.reqsForTier3 < reqCount && reqCount <= fc.reqsForTier4) {
+        } else if (reqCount <= fc.reqsForTier4) {
             return fc.fulfillmentFlatFeeOKTTier3;
-        }
-        if (fc.reqsForTier4 < reqCount && reqCount <= fc.reqsForTier5) {
+        } else if (reqCount <= fc.reqsForTier5) {
             return fc.fulfillmentFlatFeeOKTTier4;
+        } else {
+            return fc.fulfillmentFlatFeeOKTTier5;
         }
-        return fc.fulfillmentFlatFeeOKTTier5;
     }
 
     /**
@@ -617,10 +631,11 @@ contract MockVRFCoordinatorV2 is
      * @return payment amount billed to the subscription
      * @dev simulated offchain to determine if sufficient balance is present to fulfill the request
      */
-    function fulfillRandomWords(
-        Proof memory proof,
-        RequestCommitment memory rc
-    ) external nonReentrant returns (uint96) {
+    function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc)
+        external
+        nonReentrant
+        returns (uint96)
+    {
         uint256 startGas = gasleft();
         (
             bytes32 keyHash,
@@ -693,10 +708,11 @@ contract MockVRFCoordinatorV2 is
      * @param amount is the OKT amount user send to this contract.
      * @param subId is the target for add balance.
      */
-    function charge(
-        uint256 amount,
-        uint64 subId
-    ) external payable nonReentrant {
+    function charge(uint256 amount, uint64 subId)
+        external
+        payable
+        nonReentrant
+    {
         require(
             msg.value >= amount,
             "VRFCoordinatorV2::charge: send not enough okt"
@@ -719,9 +735,7 @@ contract MockVRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function getSubscription(
-        uint64 subId
-    )
+    function getSubscription(uint64 subId)
         external
         view
         override
@@ -769,10 +783,12 @@ contract MockVRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function requestSubscriptionOwnerTransfer(
-        uint64 subId,
-        address newOwner
-    ) external override onlySubOwner(subId) nonReentrant {
+    function requestSubscriptionOwnerTransfer(uint64 subId, address newOwner)
+        external
+        override
+        onlySubOwner(subId)
+        nonReentrant
+    {
         // Proposing to address(0) would never be claimable so don't need to check.
         if (s_subscriptionConfigs[subId].requestedOwner != newOwner) {
             s_subscriptionConfigs[subId].requestedOwner = newOwner;
@@ -787,9 +803,11 @@ contract MockVRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function acceptSubscriptionOwnerTransfer(
-        uint64 subId
-    ) external override nonReentrant {
+    function acceptSubscriptionOwnerTransfer(uint64 subId)
+        external
+        override
+        nonReentrant
+    {
         if (s_subscriptionConfigs[subId].owner == address(0)) {
             revert InvalidSubscription();
         }
@@ -807,10 +825,12 @@ contract MockVRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function addConsumer(
-        uint64 subId,
-        address consumer
-    ) external override onlySubOwner(subId) nonReentrant {
+    function addConsumer(uint64 subId, address consumer)
+        external
+        override
+        onlySubOwner(subId)
+        nonReentrant
+    {
         // Already maxed, cannot add any more consumers.
         if (s_subscriptionConfigs[subId].consumers.length == MAX_CONSUMERS) {
             revert TooManyConsumers();
@@ -830,10 +850,12 @@ contract MockVRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function removeConsumer(
-        uint64 subId,
-        address consumer
-    ) external override onlySubOwner(subId) nonReentrant {
+    function removeConsumer(uint64 subId, address consumer)
+        external
+        override
+        onlySubOwner(subId)
+        nonReentrant
+    {
         if (s_consumers[consumer][subId] == 0) {
             revert InvalidConsumer(subId, consumer);
         }
@@ -857,20 +879,22 @@ contract MockVRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function cancelSubscription(
-        uint64 subId,
-        address to
-    ) external override onlySubOwner(subId) nonReentrant {
+    function cancelSubscription(uint64 subId, address to)
+        external
+        override
+        onlySubOwner(subId)
+        nonReentrant
+    {
         if (pendingRequestExists(subId)) {
             revert PendingRequestExists();
         }
         cancelSubscriptionHelper(subId, to);
     }
 
-    function cancelSubscriptionHelper(
-        uint64 subId,
-        address to
-    ) public nonReentrant {
+    function cancelSubscriptionHelper(uint64 subId, address to)
+        public
+        nonReentrant
+    {
         SubscriptionConfig memory subConfig = s_subscriptionConfigs[subId];
         Subscription memory sub = s_subscriptions[subId];
         uint96 balance = sub.balance;

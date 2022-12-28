@@ -36,8 +36,7 @@ abstract contract VRFV2WrapperConsumerBase is Ownable {
         bool fulfilled; // whether the request has been successfully fulfilled
         uint256[] randomWords;
     }
-    mapping(uint256 => RequestStatus)
-        public s_requests; /* requestId --> requestStatus */
+    mapping(uint256 => RequestStatus) public s_requests; /* requestId --> requestStatus */
 
     // past requests Id.
     uint256[] public requestIds;
@@ -51,12 +50,14 @@ abstract contract VRFV2WrapperConsumerBase is Ownable {
         VRF_V2_WRAPPER = VRFV2WrapperInterface(_vrfV2Wrapper);
     }
 
-    function getRequestStatus(
-        uint256 _requestId
-    )
+    function getRequestStatus(uint256 _requestId)
         external
         view
-        returns (uint256 paid, bool fulfilled, uint256[] memory randomWords)
+        returns (
+            uint256 paid,
+            bool fulfilled,
+            uint256[] memory randomWords
+        )
     {
         require(s_requests[_requestId].paid > 0, "request not found");
         RequestStatus memory request = s_requests[_requestId];

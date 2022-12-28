@@ -190,9 +190,13 @@ contract VRFV2Wrapper is
      *
      * @param _callbackGasLimit is the gas limit used to estimate the price.
      */
-    function calculateRequestPrice(
-        uint32 _callbackGasLimit
-    ) external view override onlyConfiguredNotDisabled returns (uint256) {
+    function calculateRequestPrice(uint32 _callbackGasLimit)
+        external
+        view
+        override
+        onlyConfiguredNotDisabled
+        returns (uint256)
+    {
         return calculateRequestPriceInternal(_callbackGasLimit, tx.gasprice);
     }
 

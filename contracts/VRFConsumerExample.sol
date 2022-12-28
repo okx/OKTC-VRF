@@ -13,25 +13,20 @@ contract VRFConsumerExample is VRFConsumerBaseV2 {
         bool exists; // whether a requestId exists
         uint256[] randomWords;
     }
-    mapping(uint256 => RequestStatus)
-        public s_requests; /* requestId --> requestStatus */
+    mapping(uint256 => RequestStatus) public s_requests; /* requestId --> requestStatus */
     VRFCoordinatorV2Interface public COORDINATOR;
 
     // Your subscription ID.
-    uint64 s_subscriptionId;
+    uint64 public s_subscriptionId;
 
     // past requests Id.
     uint256[] public requestIds;
     uint256 public lastRequestId;
     uint256 public lastRequestBlockNumber;
-
-    bytes32 keyHash;
-
-    uint32 callbackGasLimit;
-
-    uint16 requestConfirmations;
-
-    uint32 numWords;
+    bytes32 public keyHash;
+    uint32 public callbackGasLimit;
+    uint16 public requestConfirmations;
+    uint32 public numWords;
 
     constructor(
         uint64 subscriptionId,
@@ -100,9 +95,11 @@ contract VRFConsumerExample is VRFConsumerBaseV2 {
         emit RequestFulfilled(_requestId, _randomWords);
     }
 
-    function getRequestStatus(
-        uint256 _requestId
-    ) external view returns (bool fulfilled, uint256[] memory randomWords) {
+    function getRequestStatus(uint256 _requestId)
+        external
+        view
+        returns (bool fulfilled, uint256[] memory randomWords)
+    {
         require(s_requests[_requestId].exists, "request not found");
         RequestStatus memory request = s_requests[_requestId];
         return (request.fulfilled, request.randomWords);

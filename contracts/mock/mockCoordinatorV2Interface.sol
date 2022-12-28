@@ -11,7 +11,11 @@ interface VRFCoordinatorV2Interface {
     function getRequestConfig()
         external
         view
-        returns (uint16, uint32, bytes32[] memory);
+        returns (
+            uint16,
+            uint32,
+            bytes32[] memory
+        );
 
     /**
      * @notice Request a set of random words.
@@ -59,9 +63,7 @@ interface VRFCoordinatorV2Interface {
      * @return owner - owner of the subscription.
      * @return consumers - list of consumer address which are able to use this subscription.
      */
-    function getSubscription(
-        uint64 subId
-    )
+    function getSubscription(uint64 subId)
         external
         view
         returns (
@@ -76,10 +78,8 @@ interface VRFCoordinatorV2Interface {
      * @param subId - ID of the subscription
      * @param newOwner - proposed new owner of the subscription
      */
-    function requestSubscriptionOwnerTransfer(
-        uint64 subId,
-        address newOwner
-    ) external;
+    function requestSubscriptionOwnerTransfer(uint64 subId, address newOwner)
+        external;
 
     /**
      * @notice Request subscription owner transfer.

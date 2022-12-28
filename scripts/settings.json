@@ -1,33 +1,32 @@
 {
   "VRFCoordinatorV2Config": {
-    "minimumRequestConfirmations": 20,
-    "maxGasLimit": 1e9,
-    "maxGasPrice": 1e12,
-    "gasAfterPaymentCalculation": 31344,
-    "feeConfig": [0, 1, 2, 3, 4, 4, 3, 2, 1]
+    "minimumRequestConfirmations": 20, //应该改设为0
+    "maxGasLimit": 500000000, //okc区块最大gaslimit，目前是5*1e8,未来会不断增加 可能产生问题：oracle地址余额不够
+    "maxGasPrice": 1e12, //优化，打回proof，min(gasprice[pk],tx.gasprice)
+    "gasAfterPaymentCalculation": 31344, //8000或者改回withdraw模式，跟国良和后端确认
+    "feeConfig": [0, 1, 2, 3, 4, 4, 3, 2, 1] //需要产品经理确认，目前是 0-1 4wei手续费 1-2 3wei手续费 2-3 2wei手续费 3-4 1wei手续费 4以上无
   },
   "VRFCoordinatorV2ConstantVaribles": {
-    "MAX_CONSUMERS": 200,
-    "MAX_REQUEST_CONFIRMATIONS": 200,
-    "MAX_NUM_WORDS": 500,
-    "MAX_GAS_PRICE": 1e12,
-    "GAS_FOR_CALL_EXACT_CHECK": 5000
-  },
-  "VRFCoordinatorV2ConsumerConstructor": {
-    "callbackGasLimit": 500000,
-    "requestConfirmations": 20,
-    "numWords": 2
+    "MAX_CONSUMERS": 200, //保持与chainlink相同
+    "MAX_REQUEST_CONFIRMATIONS": 200, //保持与chainlink相同
+    "MAX_NUM_WORDS": 500, //保持与chainlink相同
+    "GAS_FOR_CALL_EXACT_CHECK": 5000 //保持与chainlink相同
   },
   "VRFV2WrapperConfig": {
     "minGasPrice": 1e5,
     "_wrapperGasOverhead": 50000,
     "_coordinatorGasOverhead": 50000,
-    "_wrapperPremiumPercentage": 0,
+    "_wrapperPremiumPercentage": 0, //需要产品经理确认，目前是0，意味着wrapper模式除了收手续费差价不收取其他费用
     "_keyHash": "keyhash(Oracle[0].pk)",
-    "_maxNumWords": 10
+    "_maxNumWords": 10 //和产品经理确认
   },
   "VRFV2WrapperConstantVaribles": {
-    "GAS_FOR_CALL_EXACT_CHECK": 5000
+    "GAS_FOR_CALL_EXACT_CHECK": 5000 //保持与chainlink相同
+  },
+  "VRFCoordinatorV2ConsumerConstructor": {
+    "callbackGasLimit": 500000,
+    "requestConfirmations": 20,
+    "numWords": 2
   },
   "Oracle": [
     {

@@ -11,9 +11,9 @@ contract VRFV2WrapperConsumerExample is VRFV2WrapperConsumerBase {
         uint256 payment
     );
 
-    constructor(
-        address _vrfV2Wrapper
-    ) VRFV2WrapperConsumerBase(_vrfV2Wrapper) {}
+    constructor(address _vrfV2Wrapper)
+        VRFV2WrapperConsumerBase(_vrfV2Wrapper)
+    {}
 
     function fulfillRandomWords(
         uint256 _requestId,

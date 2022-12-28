@@ -80,7 +80,7 @@ async function delpoyVRFCoordinatorV2(proxyAdmin) {
   );
   console.log(
     "VRFCoordinatorV2ProxyContract deployed to " +
-      transparentUpgradeableProxy.address,
+    transparentUpgradeableProxy.address,
   );
   console.log("-------------- finish delpoyVRFCoordinatorV2 --------------\n");
   return transparentUpgradeableProxy;
@@ -108,7 +108,7 @@ async function delpoyVRFV2Wrapper(proxyAdmin) {
   );
   console.log(
     "VRFV2WrapperProxyContract deployed to " +
-      transparentUpgradeableProxy.address,
+    transparentUpgradeableProxy.address,
   );
   console.log("-------------- finish delpoyVRFV2Wrapper --------------\n");
   return transparentUpgradeableProxy;
