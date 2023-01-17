@@ -595,6 +595,7 @@ describe("VRFCoordinatorV2", function () {
           VRFCoordinatorV2.connect(owner).addConsumer(1, oracle.address),
         ).to.be.reverted;
       });
+
       it("Should revert because of no permission to addConsumer", async function () {
         const { VRFCoordinatorV2, owner, oracle, alice } = await loadFixture(
           deployVRFCoordinatorV2,
@@ -604,6 +605,20 @@ describe("VRFCoordinatorV2", function () {
         await expect(
           VRFCoordinatorV2.connect(alice).addConsumer(1, owner.address),
         ).to.be.revertedWithCustomError(VRFCoordinatorV2, `TooManyConsumers`);
+      });
+
+      it("Should revert because of invalidSub", async function () {
+        const { VRFCoordinatorV2, owner, oracle, alice } = await loadFixture(
+          deployVRFCoordinatorV2,
+        );
+        await VRFCoordinatorV2.connect(alice).createSubscription();
+        await VRFCoordinatorV2.connect(alice).cancelSubscription(1, alice.address);
+        await expect(
+          VRFCoordinatorV2.connect(alice).addConsumer(1, owner.address),
+        ).to.be.revertedWithCustomError(VRFCoordinatorV2, `InvalidSubscription`);
+        await expect(
+          VRFCoordinatorV2.connect(alice).addConsumer(2, owner.address),
+        ).to.be.revertedWithCustomError(VRFCoordinatorV2, `InvalidSubscription`);
       });
     });
 

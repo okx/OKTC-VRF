@@ -712,6 +712,9 @@ contract VRFCoordinatorV2 is
         if (s_subscriptionConfigs[subId].consumers.length == MAX_CONSUMERS) {
             revert Errors.TooManyConsumers();
         }
+        if (s_subscriptionConfigs[subId].owner == address(0)) {
+            revert Errors.InvalidSubscription();
+        }
         if (s_consumers[consumer][subId] != 0) {
             // Idempotence - do nothing if already added.
             // Ensures uniqueness in s_subscriptions[subId].consumers.
