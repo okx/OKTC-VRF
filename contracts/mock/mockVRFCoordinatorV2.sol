@@ -82,7 +82,8 @@ contract MockVRFCoordinatorV2 is
         uint16 minimumRequestConfirmations,
         uint32 callbackGasLimit,
         uint32 numWords,
-        address indexed sender
+        address indexed sender,
+        address EOACaller
     );
     event RandomWordsFulfilled(
         uint256 indexed requestId,
@@ -475,7 +476,8 @@ contract MockVRFCoordinatorV2 is
             requestConfirmations,
             callbackGasLimit,
             numWords,
-            msg.sender
+            msg.sender,
+            tx.origin
         );
         BlockhashStoreInterface(BLOCKHASH_STORE).store(block.number - 1);
         s_consumers[msg.sender][subId] = nonce;

@@ -1,7 +1,112 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-interface VRFCoordinatorV2Interface {
+import "./BlockhashStoreInterface.sol";
+import "./VRFConsumerBaseV2.sol";
+import "./TypeAndVersionInterface.sol";
+
+interface VRFCoordinatorV2Interface is TypeAndVersionInterface {
+    struct Config {
+        uint16 minimumRequestConfirmations;
+        uint32 maxGasLimit;
+        // Reentrancy protection.
+        bool reentrancyLock;
+        // Gas to cover oracle payment after we calculate the payment.
+        // We make it configurable in case those operations are repriced.
+        uint256 gasAfterPaymentCalculation;
+    }
+    struct FeeConfig {
+        uint32 fulfillmentFlatFeeOKTTier1;
+        uint32 fulfillmentFlatFeeOKTTier2;
+        uint32 fulfillmentFlatFeeOKTTier3;
+        uint32 fulfillmentFlatFeeOKTTier4;
+        uint32 fulfillmentFlatFeeOKTTier5;
+        uint24 reqsForTier2;
+        uint24 reqsForTier3;
+        uint24 reqsForTier4;
+        uint24 reqsForTier5;
+    }
+    // We use the subscription struct (1 word)
+    // at fulfillment time.
+    struct Subscription {
+        // There are only 1e9*1e18 = 1e27 juels in existence, so the balance can fit in uint96 (2^96 ~ 7e28)
+        uint96 balance; // Common OKT balance used for all consumer requests.
+        uint64 reqCount; // For fee tiers
+    }
+    struct SubscriptionConfig {
+        address owner; // Owner can fund/withdraw/cancel the sub.
+        address requestedOwner; // For safely transferring sub ownership.
+        // Maintains the list of keys in s_consumers.
+        // We do this for 2 reasons:
+        // 1. To be able to clean up all keys from s_consumers when canceling a subscription.
+        // 2. To be able to return the list of all consumers in getSubscription.
+        // Note that we need the s_consumers map to be able to directly check if a
+        // consumer is valid without reading all the consumers from storage.
+        address[] consumers;
+    }
+    struct RequestCommitment {
+        uint64 blockNum;
+        uint64 subId;
+        uint32 callbackGasLimit;
+        uint32 numWords;
+        address sender;
+    }
+
+    event FundsRecovered(address to, uint256 amount);
+    event OracleWithdraw(address to, uint256 amount);
+    event SubscriptionCreated(uint64 indexed subId, address owner);
+    event SubscriptionFunded(
+        uint64 indexed subId,
+        uint256 oldBalance,
+        uint256 newBalance
+    );
+    event SubscriptionConsumerAdded(uint64 indexed subId, address consumer);
+    event SubscriptionConsumerRemoved(uint64 indexed subId, address consumer);
+    event SubscriptionCanceled(
+        uint64 indexed subId,
+        address to,
+        uint256 amount
+    );
+    event SubscriptionOwnerTransferRequested(
+        uint64 indexed subId,
+        address from,
+        address to
+    );
+    event SubscriptionOwnerTransferred(
+        uint64 indexed subId,
+        address from,
+        address to
+    );
+    event ConfigSet(
+        uint16 minimumRequestConfirmations,
+        uint32 maxGasLimit,
+        uint256 gasAfterPaymentCalculation,
+        FeeConfig feeConfig
+    );
+    event ProvingKeyRegistered(
+        bytes32 keyHash,
+        address indexed oracle,
+        uint256 gasPrice
+    );
+    event ProvingKeyDeregistered(bytes32 keyHash, address indexed oracle);
+    event RandomWordsRequested(
+        bytes32 indexed keyHash,
+        uint256 requestId,
+        uint256 preSeed,
+        uint64 indexed subId,
+        uint16 minimumRequestConfirmations,
+        uint32 callbackGasLimit,
+        uint32 numWords,
+        address indexed sender,
+        address EOACaller
+    );
+    event RandomWordsFulfilled(
+        uint256 indexed requestId,
+        uint256 outputSeed,
+        uint96 payment,
+        bool success
+    );
+
     /**
      * @notice Get configuration relevant for making requests
      * @return minimumRequestConfirmations global min for request confirmations

@@ -1,95 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
-import "./interfaces/BlockhashStoreInterface.sol";
 import "./interfaces/VRFCoordinatorV2Interface.sol";
-import "./interfaces/TypeAndVersionInterface.sol";
-import "./interfaces/VRFConsumerBaseV2.sol";
-import "./VRF.sol";
+import "./libraries/Errors.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "./VRF.sol";
 
 contract VRFCoordinatorV2 is
     VRF,
     Ownable2StepUpgradeable,
-    TypeAndVersionInterface,
     VRFCoordinatorV2Interface
 {
-    error GasPriceOverRange(uint256 gasPrice);
-    error TooManyConsumers();
-    error InsufficientBalance();
-    error InvalidConsumer(uint64 subId, address consumer);
-    error InvalidSubscription();
-    error MustBeSubOwner(address owner);
-    error PendingRequestExists();
-    error MustBeRequestedOwner(address proposedOwner);
-    error BalanceInvariantViolated(
-        uint256 internalBalance,
-        uint256 externalBalance
-    );
-    error InvalidRequestConfirmations(uint16 have, uint16 min, uint16 max);
-    error GasLimitTooBig(uint32 have, uint32 want);
-    error NumWordsTooBig(uint32 have, uint32 want);
-    error ProvingKeyAlreadyRegistered(bytes32 keyHash);
-    error NoSuchProvingKey(bytes32 keyHash);
-    error NoCorrespondingRequest();
-    error IncorrectCommitment();
-    error BlockhashNotInStore(uint256 blockNum);
-    error Reentrant();
-
-    event FundsRecovered(address to, uint256 amount);
-    event OracleWithdraw(address to, uint256 amount);
-    event SubscriptionCreated(uint64 indexed subId, address owner);
-    event SubscriptionFunded(
-        uint64 indexed subId,
-        uint256 oldBalance,
-        uint256 newBalance
-    );
-    event SubscriptionConsumerAdded(uint64 indexed subId, address consumer);
-    event SubscriptionConsumerRemoved(uint64 indexed subId, address consumer);
-    event SubscriptionCanceled(
-        uint64 indexed subId,
-        address to,
-        uint256 amount
-    );
-    event SubscriptionOwnerTransferRequested(
-        uint64 indexed subId,
-        address from,
-        address to
-    );
-    event SubscriptionOwnerTransferred(
-        uint64 indexed subId,
-        address from,
-        address to
-    );
-    event ConfigSet(
-        uint16 minimumRequestConfirmations,
-        uint32 maxGasLimit,
-        uint256 gasAfterPaymentCalculation,
-        FeeConfig feeConfig
-    );
-    event ProvingKeyRegistered(
-        bytes32 keyHash,
-        address indexed oracle,
-        uint256 gasPrice
-    );
-    event ProvingKeyDeregistered(bytes32 keyHash, address indexed oracle);
-    event RandomWordsRequested(
-        bytes32 indexed keyHash,
-        uint256 requestId,
-        uint256 preSeed,
-        uint64 indexed subId,
-        uint16 minimumRequestConfirmations,
-        uint32 callbackGasLimit,
-        uint32 numWords,
-        address indexed sender
-    );
-    event RandomWordsFulfilled(
-        uint256 indexed requestId,
-        uint256 outputSeed,
-        uint96 payment,
-        bool success
-    );
-
     // We need to maintain a list of consuming addresses.
     // This bound ensures we are able to loop over them as needed.
     // Should a user require more consumers, they can use multiple subscriptions.
@@ -114,52 +35,6 @@ contract VRFCoordinatorV2 is
     uint256 public MAX_GAS_PRICE;
     Config private s_config;
     FeeConfig private s_feeConfig;
-
-    struct Config {
-        uint16 minimumRequestConfirmations;
-        uint32 maxGasLimit;
-        // Reentrancy protection.
-        bool reentrancyLock;
-        // Gas to cover oracle payment after we calculate the payment.
-        // We make it configurable in case those operations are repriced.
-        uint256 gasAfterPaymentCalculation;
-    }
-    struct FeeConfig {
-        uint32 fulfillmentFlatFeeOKTTier1;
-        uint32 fulfillmentFlatFeeOKTTier2;
-        uint32 fulfillmentFlatFeeOKTTier3;
-        uint32 fulfillmentFlatFeeOKTTier4;
-        uint32 fulfillmentFlatFeeOKTTier5;
-        uint24 reqsForTier2;
-        uint24 reqsForTier3;
-        uint24 reqsForTier4;
-        uint24 reqsForTier5;
-    }
-    // We use the subscription struct (1 word)
-    // at fulfillment time.
-    struct Subscription {
-        // There are only 1e9*1e18 = 1e27 juels in existence, so the balance can fit in uint96 (2^96 ~ 7e28)
-        uint96 balance; // Common OKT balance used for all consumer requests.
-        uint64 reqCount; // For fee tiers
-    }
-    struct SubscriptionConfig {
-        address owner; // Owner can fund/withdraw/cancel the sub.
-        address requestedOwner; // For safely transferring sub ownership.
-        // Maintains the list of keys in s_consumers.
-        // We do this for 2 reasons:
-        // 1. To be able to clean up all keys from s_consumers when canceling a subscription.
-        // 2. To be able to return the list of all consumers in getSubscription.
-        // Note that we need the s_consumers map to be able to directly check if a
-        // consumer is valid without reading all the consumers from storage.
-        address[] consumers;
-    }
-    struct RequestCommitment {
-        uint64 blockNum;
-        uint64 subId;
-        uint32 callbackGasLimit;
-        uint32 numWords;
-        address sender;
-    }
 
     mapping(address => mapping(uint64 => uint64)) /* consumer */ /* subId */ /* nonce */
         private s_consumers;
@@ -192,10 +67,10 @@ contract VRFCoordinatorV2 is
     ) external onlyOwner {
         bytes32 kh = hashOfKey(publicProvingKey);
         if (s_provingKeys[kh] != address(0)) {
-            revert ProvingKeyAlreadyRegistered(kh);
+            revert Errors.ProvingKeyAlreadyRegistered(kh);
         }
         if (gasPrice > MAX_GAS_PRICE) {
-            revert GasPriceOverRange(gasPrice);
+            revert Errors.GasPriceOverRange(gasPrice);
         }
         s_provingKeys[kh] = oracle;
         s_gasPrice[kh] = gasPrice;
@@ -214,7 +89,7 @@ contract VRFCoordinatorV2 is
         bytes32 kh = hashOfKey(publicProvingKey);
         address oracle = s_provingKeys[kh];
         if (oracle == address(0)) {
-            revert NoSuchProvingKey(kh);
+            revert Errors.NoSuchProvingKey(kh);
         }
         delete s_provingKeys[kh];
         delete s_gasPrice[kh];
@@ -259,7 +134,7 @@ contract VRFCoordinatorV2 is
         FeeConfig memory feeConfig
     ) external onlyOwner {
         if (minimumRequestConfirmations > MAX_REQUEST_CONFIRMATIONS) {
-            revert InvalidRequestConfirmations(
+            revert Errors.InvalidRequestConfirmations(
                 minimumRequestConfirmations,
                 minimumRequestConfirmations,
                 MAX_REQUEST_CONFIRMATIONS
@@ -336,7 +211,7 @@ contract VRFCoordinatorV2 is
      */
     function ownerCancelSubscription(uint64 subId) external onlyOwner {
         if (s_subscriptionConfigs[subId].owner == address(0)) {
-            revert InvalidSubscription();
+            revert Errors.InvalidSubscription();
         }
         cancelSubscriptionHelper(subId, s_subscriptionConfigs[subId].owner);
     }
@@ -349,7 +224,10 @@ contract VRFCoordinatorV2 is
         uint256 externalBalance = address(this).balance;
         uint256 internalBalance = uint256(s_totalBalance);
         if (internalBalance > externalBalance) {
-            revert BalanceInvariantViolated(internalBalance, externalBalance);
+            revert Errors.BalanceInvariantViolated(
+                internalBalance,
+                externalBalance
+            );
         }
         if (internalBalance < externalBalance) {
             uint256 amount = externalBalance - internalBalance;
@@ -420,18 +298,18 @@ contract VRFCoordinatorV2 is
         uint32 numWords
     ) external override nonReentrant returns (uint256) {
         if (s_subscriptionConfigs[subId].owner == address(0)) {
-            revert InvalidSubscription();
+            revert Errors.InvalidSubscription();
         }
         uint64 currentNonce = s_consumers[msg.sender][subId];
         if (currentNonce == 0) {
-            revert InvalidConsumer(subId, msg.sender);
+            revert Errors.InvalidConsumer(subId, msg.sender);
         }
 
         if (
             requestConfirmations < s_config.minimumRequestConfirmations ||
             requestConfirmations > MAX_REQUEST_CONFIRMATIONS
         ) {
-            revert InvalidRequestConfirmations(
+            revert Errors.InvalidRequestConfirmations(
                 requestConfirmations,
                 s_config.minimumRequestConfirmations,
                 MAX_REQUEST_CONFIRMATIONS
@@ -439,10 +317,13 @@ contract VRFCoordinatorV2 is
         }
 
         if (callbackGasLimit > s_config.maxGasLimit) {
-            revert GasLimitTooBig(callbackGasLimit, s_config.maxGasLimit);
+            revert Errors.GasLimitTooBig(
+                callbackGasLimit,
+                s_config.maxGasLimit
+            );
         }
         if (numWords > MAX_NUM_WORDS) {
-            revert NumWordsTooBig(numWords, MAX_NUM_WORDS);
+            revert Errors.NumWordsTooBig(numWords, MAX_NUM_WORDS);
         }
         uint64 nonce = currentNonce + 1;
         (uint256 requestId, uint256 preSeed) = computeRequestId(
@@ -470,7 +351,8 @@ contract VRFCoordinatorV2 is
             requestConfirmations,
             callbackGasLimit,
             numWords,
-            msg.sender
+            msg.sender,
+            tx.origin
         );
         BlockhashStoreInterface(BLOCKHASH_STORE).store(block.number - 1);
         s_consumers[msg.sender][subId] = nonce;
@@ -561,12 +443,12 @@ contract VRFCoordinatorV2 is
         // Only registered proving keys are permitted.
         address oracle = s_provingKeys[keyHash];
         if (oracle == address(0)) {
-            revert NoSuchProvingKey(keyHash);
+            revert Errors.NoSuchProvingKey(keyHash);
         }
         requestId = uint256(keccak256(abi.encode(keyHash, proof.seed)));
         bytes32 commitment = s_requestCommitments[requestId];
         if (commitment == 0) {
-            revert NoCorrespondingRequest();
+            revert Errors.NoCorrespondingRequest();
         }
         if (
             commitment !=
@@ -581,14 +463,14 @@ contract VRFCoordinatorV2 is
                 )
             )
         ) {
-            revert IncorrectCommitment();
+            revert Errors.IncorrectCommitment();
         }
 
         bytes32 blockHash = blockhash(rc.blockNum - 1);
         if (blockHash == bytes32(0)) {
             blockHash = BLOCKHASH_STORE.getBlockhash(rc.blockNum - 1);
             if (blockHash == bytes32(0)) {
-                revert BlockhashNotInStore(rc.blockNum);
+                revert Errors.BlockhashNotInStore(rc.blockNum);
             }
         }
 
@@ -639,7 +521,7 @@ contract VRFCoordinatorV2 is
         ) = getRandomnessFromProof(proof, rc);
 
         if (tx.gasprice >= s_gasPrice[keyHash]) {
-            revert GasPriceOverRange(tx.gasprice);
+            revert Errors.GasPriceOverRange(tx.gasprice);
         }
 
         uint256[] memory randomWords = new uint256[](rc.numWords);
@@ -669,7 +551,7 @@ contract VRFCoordinatorV2 is
             tx.gasprice
         );
         if (s_subscriptions[rc.subId].balance < payment) {
-            revert InsufficientBalance();
+            revert Errors.InsufficientBalance();
         }
         s_subscriptions[rc.subId].balance -= payment;
         (bool transfer, ) = payable(s_provingKeys[keyHash]).call{
@@ -713,7 +595,7 @@ contract VRFCoordinatorV2 is
             "VRFCoordinatorV2::charge: send not enough okt"
         );
         if (s_subscriptionConfigs[subId].owner == address(0)) {
-            revert InvalidSubscription();
+            revert Errors.InvalidSubscription();
         }
         // We do not check that the msg.sender is the subscription owner,
         // anyone can fund a subscription.
@@ -742,7 +624,7 @@ contract VRFCoordinatorV2 is
         )
     {
         if (s_subscriptionConfigs[subId].owner == address(0)) {
-            revert InvalidSubscription();
+            revert Errors.InvalidSubscription();
         }
         return (
             s_subscriptions[subId].balance,
@@ -804,10 +686,10 @@ contract VRFCoordinatorV2 is
         nonReentrant
     {
         if (s_subscriptionConfigs[subId].owner == address(0)) {
-            revert InvalidSubscription();
+            revert Errors.InvalidSubscription();
         }
         if (s_subscriptionConfigs[subId].requestedOwner != msg.sender) {
-            revert MustBeRequestedOwner(
+            revert Errors.MustBeRequestedOwner(
                 s_subscriptionConfigs[subId].requestedOwner
             );
         }
@@ -828,7 +710,7 @@ contract VRFCoordinatorV2 is
     {
         // Already maxed, cannot add any more consumers.
         if (s_subscriptionConfigs[subId].consumers.length == MAX_CONSUMERS) {
-            revert TooManyConsumers();
+            revert Errors.TooManyConsumers();
         }
         if (s_consumers[consumer][subId] != 0) {
             // Idempotence - do nothing if already added.
@@ -852,7 +734,7 @@ contract VRFCoordinatorV2 is
         nonReentrant
     {
         if (s_consumers[consumer][subId] == 0) {
-            revert InvalidConsumer(subId, consumer);
+            revert Errors.InvalidConsumer(subId, consumer);
         }
         // Note bounded by MAX_CONSUMERS
         address[] memory consumers = s_subscriptionConfigs[subId].consumers;
@@ -881,7 +763,7 @@ contract VRFCoordinatorV2 is
         nonReentrant
     {
         if (pendingRequestExists(subId)) {
-            revert PendingRequestExists();
+            revert Errors.PendingRequestExists();
         }
         cancelSubscriptionHelper(subId, to);
     }
@@ -901,7 +783,7 @@ contract VRFCoordinatorV2 is
         s_totalBalance -= balance;
         (bool success, ) = payable(to).call{value: balance, gas: 8000}("");
         if (!success) {
-            revert InsufficientBalance();
+            revert Errors.InsufficientBalance();
         }
         emit SubscriptionCanceled(subId, to, balance);
     }
@@ -909,17 +791,17 @@ contract VRFCoordinatorV2 is
     modifier onlySubOwner(uint64 subId) {
         address owner = s_subscriptionConfigs[subId].owner;
         if (owner == address(0)) {
-            revert InvalidSubscription();
+            revert Errors.InvalidSubscription();
         }
         if (msg.sender != owner) {
-            revert MustBeSubOwner(owner);
+            revert Errors.MustBeSubOwner(owner);
         }
         _;
     }
 
     modifier nonReentrant() {
         if (s_config.reentrancyLock) {
-            revert Reentrant();
+            revert Errors.Reentrant();
         }
         _;
     }

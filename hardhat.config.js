@@ -21,6 +21,11 @@ module.exports = {
       gas: 6000000,
       accounts: [process.env.PRIVATE_KEY]
     },
+    OKCTestnet: {
+      url: `https://exchaintestrpc.okex.org`,
+      gas: 6000000,
+      accounts: [process.env.PRIVATE_KEY]
+    },
     rinkeby: {
       url: `https://eth-goerli.alchemyapi.io/v2/GlaeWuylnNM3uuOo-SAwJxuwTdqHaY5l`,
       accounts: [process.env.PRIVATE_KEY]

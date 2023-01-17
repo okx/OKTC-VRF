@@ -767,7 +767,7 @@ describe("VRFCoordinatorV2", function () {
 
     describe("Events", function () {
       it("Should emit event RandomWordsRequested on changeRequireAprove", async function () {
-        const { VRFCoordinatorV2, keyHash, owner, oracle, alice, bob } =
+        const { VRFCoordinatorV2, mockVRFConsumer, keyHash, owner, oracle, alice, bob } =
           await loadFixture(deployVRFCoordinatorV2andInit);
         [requestId, preSeed] = await VRFCoordinatorV2.computeRequestId(
           keyHash,
@@ -777,16 +777,11 @@ describe("VRFCoordinatorV2", function () {
         );
         const blockNumAfter = await ethers.provider.getBlockNumber();
         expect(
-          await VRFCoordinatorV2.connect(bob).requestRandomWords(
-            keyHash,
-            1,
-            100,
-            0,
-            1,
-          ),
+          await mockVRFConsumer.connect(bob).requestRandomWords(
+          )
         )
           .to.emit(VRFCoordinatorV2, "RandomWordsRequested")
-          .withArgs(keyHash, requestId, preSeed, 1, 100, 100, 1, bob.address);
+          .withArgs(keyHash, requestId, preSeed, 1, 100, 100, 1, mockVRFConsumer.address, bob.address);
       });
     });
 
