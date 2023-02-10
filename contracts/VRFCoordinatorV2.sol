@@ -14,7 +14,7 @@ contract VRFCoordinatorV2 is
     // We need to maintain a list of consuming addresses.
     // This bound ensures we are able to loop over them as needed.
     // Should a user require more consumers, they can use multiple subscriptions.
-    uint16 public constant MAX_CONSUMERS = 200;
+    uint16 public constant MAX_CONSUMERS = 100;
     // We make the sub count public so that its possible to
     // get all the current subscriptions via getSubscription.
     uint64 private s_currentSubId;
@@ -47,7 +47,8 @@ contract VRFCoordinatorV2 is
     bytes32[] private s_provingKeyHashes;
     mapping(uint256 => bytes32) /* requestID */ /* commitment */
         private s_requestCommitments;
-    mapping(bytes32 => uint256) /* keyhash */ /* gasprice */ public s_gasPrice;
+    mapping(bytes32 => uint256) /* keyhash */ /* gasprice */
+        public s_gasPrice;
 
     function initialize(address blockhashStore) public initializer {
         __Ownable2Step_init();
@@ -81,9 +82,10 @@ contract VRFCoordinatorV2 is
      * @notice Deregisters a proving key to an oracle.
      * @param publicProvingKey key that oracle can use to submit vrf fulfillments
      */
-    function deregisterProvingKey(
-        uint256[2] calldata publicProvingKey
-    ) external onlyOwner {
+    function deregisterProvingKey(uint256[2] calldata publicProvingKey)
+        external
+        onlyOwner
+    {
         bytes32 kh = hashOfKey(publicProvingKey);
         address oracle = s_provingKeys[kh];
         if (oracle == address(0)) {
@@ -108,9 +110,11 @@ contract VRFCoordinatorV2 is
      * @notice Returns the proving key hash key associated with this public key
      * @param publicKey the key to return the hash of
      */
-    function hashOfKey(
-        uint256[2] memory publicKey
-    ) public pure returns (bytes32) {
+    function hashOfKey(uint256[2] memory publicKey)
+        public
+        pure
+        returns (bytes32)
+    {
         return keccak256(abi.encode(publicKey));
     }
 
@@ -228,7 +232,7 @@ contract VRFCoordinatorV2 is
         if (internalBalance < externalBalance) {
             uint256 amount = externalBalance - internalBalance;
 
-            (bool success, ) = payable(to).call{value: amount, gas: 8000}("");
+            (bool success, ) = payable(to).call{value: amount}("");
             require(success, "VRFCoordinatorV2::sendOKT: transfer OKT failed");
 
             emit FundsRecovered(to, amount);
@@ -240,9 +244,12 @@ contract VRFCoordinatorV2 is
      * @dev Looping is bounded to MAX_CONSUMERS*(number of keyhashes).
      * @dev Used to disable subscription canceling while outstanding request are present.
      */
-    function pendingRequestExists(
-        uint64 subId
-    ) public view override returns (bool) {
+    function pendingRequestExists(uint64 subId)
+        public
+        view
+        override
+        returns (bool)
+    {
         SubscriptionConfig memory subConfig = s_subscriptionConfigs[subId];
         for (uint256 i = 0; i < subConfig.consumers.length; i++) {
             for (uint256 j = 0; j < s_provingKeyHashes.length; j++) {
@@ -267,7 +274,11 @@ contract VRFCoordinatorV2 is
         external
         view
         override
-        returns (uint16, uint32, bytes32[] memory)
+        returns (
+            uint16,
+            uint32,
+            bytes32[] memory
+        )
     {
         return (
             s_config.minimumRequestConfirmations,
@@ -422,7 +433,11 @@ contract VRFCoordinatorV2 is
     )
         private
         view
-        returns (bytes32 keyHash, uint256 requestId, uint256 randomness)
+        returns (
+            bytes32 keyHash,
+            uint256 requestId,
+            uint256 randomness
+        )
     {
         keyHash = hashOfKey(proof.pk);
         // Only registered proving keys are permitted.
@@ -493,10 +508,11 @@ contract VRFCoordinatorV2 is
      * @return payment amount billed to the subscription
      * @dev simulated offchain to determine if sufficient balance is present to fulfill the request
      */
-    function fulfillRandomWords(
-        Proof memory proof,
-        RequestCommitment memory rc
-    ) external nonReentrant returns (uint96) {
+    function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc)
+        external
+        nonReentrant
+        returns (uint96)
+    {
         uint256 startGas = gasleft();
         (
             bytes32 keyHash,
@@ -538,14 +554,14 @@ contract VRFCoordinatorV2 is
             revert Errors.InsufficientBalance();
         }
         s_subscriptions[rc.subId].balance -= payment;
+
         (bool transfer, ) = payable(s_provingKeys[keyHash]).call{
             value: payment,
             gas: 8000
         }("");
-        require(
-            transfer,
-            "VRFCoordinatorV2::fulfillRandomWords: transfer OKT failed"
-        );
+        if (!transfer) {
+            revert Errors.OKTTransferFailed();
+        }
         emit RandomWordsFulfilled(requestId, randomness, payment, success);
         return payment;
     }
@@ -566,17 +582,10 @@ contract VRFCoordinatorV2 is
     /**
      * @notice user call this function to add balance for subId.
      *
-     * @param amount is the OKT amount user send to this contract
      * @param subId is the target for add balance.
      */
-    function charge(
-        uint256 amount,
-        uint64 subId
-    ) external payable nonReentrant {
-        require(
-            msg.value >= amount,
-            "VRFCoordinatorV2::charge: send not enough okt"
-        );
+    function charge(uint64 subId) external payable nonReentrant {
+        uint256 amount = msg.value;
         if (s_subscriptionConfigs[subId].owner == address(0)) {
             revert Errors.InvalidSubscription();
         }
@@ -595,9 +604,7 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function getSubscription(
-        uint64 subId
-    )
+    function getSubscription(uint64 subId)
         external
         view
         override
@@ -645,10 +652,12 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function requestSubscriptionOwnerTransfer(
-        uint64 subId,
-        address newOwner
-    ) external override onlySubOwner(subId) nonReentrant {
+    function requestSubscriptionOwnerTransfer(uint64 subId, address newOwner)
+        external
+        override
+        onlySubOwner(subId)
+        nonReentrant
+    {
         // Proposing to address(0) would never be claimable so don't need to check.
         if (s_subscriptionConfigs[subId].requestedOwner != newOwner) {
             s_subscriptionConfigs[subId].requestedOwner = newOwner;
@@ -663,9 +672,11 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function acceptSubscriptionOwnerTransfer(
-        uint64 subId
-    ) external override nonReentrant {
+    function acceptSubscriptionOwnerTransfer(uint64 subId)
+        external
+        override
+        nonReentrant
+    {
         if (s_subscriptionConfigs[subId].owner == address(0)) {
             revert Errors.InvalidSubscription();
         }
@@ -683,10 +694,12 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function addConsumer(
-        uint64 subId,
-        address consumer
-    ) external override onlySubOwner(subId) nonReentrant {
+    function addConsumer(uint64 subId, address consumer)
+        external
+        override
+        onlySubOwner(subId)
+        nonReentrant
+    {
         // Already maxed, cannot add any more consumers.
         if (s_subscriptionConfigs[subId].consumers.length == MAX_CONSUMERS) {
             revert Errors.TooManyConsumers();
@@ -709,10 +722,12 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function removeConsumer(
-        uint64 subId,
-        address consumer
-    ) external override onlySubOwner(subId) nonReentrant {
+    function removeConsumer(uint64 subId, address consumer)
+        external
+        override
+        onlySubOwner(subId)
+        nonReentrant
+    {
         if (s_consumers[consumer][subId] == 0) {
             revert Errors.InvalidConsumer(subId, consumer);
         }
@@ -736,20 +751,22 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function cancelSubscription(
-        uint64 subId,
-        address to
-    ) external override onlySubOwner(subId) nonReentrant {
+    function cancelSubscription(uint64 subId, address to)
+        external
+        override
+        onlySubOwner(subId)
+        nonReentrant
+    {
         if (pendingRequestExists(subId)) {
             revert Errors.PendingRequestExists();
         }
         cancelSubscriptionHelper(subId, to);
     }
 
-    function cancelSubscriptionHelper(
-        uint64 subId,
-        address to
-    ) private nonReentrant {
+    function cancelSubscriptionHelper(uint64 subId, address to)
+        private
+        nonReentrant
+    {
         SubscriptionConfig memory subConfig = s_subscriptionConfigs[subId];
         Subscription memory sub = s_subscriptions[subId];
         uint96 balance = sub.balance;

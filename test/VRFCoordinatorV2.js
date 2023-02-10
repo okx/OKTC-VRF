@@ -103,7 +103,6 @@ describe("VRFCoordinatorV2", function () {
       .deploy(1, VRFCoordinatorV2.address, keyHash, 500000, 20, 2);
 
     await VRFCoordinatorV2.connect(alice).charge(
-      ethers.utils.parseUnits("1.0"),
       1,
       { value: ethers.utils.parseUnits("1.0") },
     );
@@ -415,15 +414,6 @@ describe("VRFCoordinatorV2", function () {
 
   describe("charge", function () {
     describe("Validations", function () {
-      it("Should revert because of not enough OKT", async function () {
-        const { VRFCoordinatorV2, owner, oracle, alice } = await loadFixture(
-          deployVRFCoordinatorV2,
-        );
-        await VRFCoordinatorV2.connect(alice).createSubscription();
-        await expect(
-          VRFCoordinatorV2.connect(oracle).charge(10, 1, { value: 5 }),
-        ).to.be.revertedWith("VRFCoordinatorV2::charge: send not enough okt");
-      });
 
       it("Should revert because of subId not exisit", async function () {
         const { VRFCoordinatorV2, owner, oracle, alice } = await loadFixture(
@@ -431,7 +421,7 @@ describe("VRFCoordinatorV2", function () {
         );
         await VRFCoordinatorV2.connect(alice).createSubscription();
         await expect(
-          VRFCoordinatorV2.connect(oracle).charge(10, 2, { value: 11 }),
+          VRFCoordinatorV2.connect(oracle).charge(2, { value: 11 }),
         ).to.be.revertedWithCustomError(
           VRFCoordinatorV2,
           `InvalidSubscription`,
@@ -446,10 +436,10 @@ describe("VRFCoordinatorV2", function () {
         );
         await VRFCoordinatorV2.connect(alice).createSubscription();
         await expect(
-          VRFCoordinatorV2.connect(alice).charge(10, 1, { value: 11 }),
+          VRFCoordinatorV2.connect(alice).charge(1, { value: 11 }),
         )
           .to.emit(VRFCoordinatorV2, "SubscriptionFunded")
-          .withArgs(1, 0, 10);
+          .withArgs(1, 0, 11);
       });
     });
 
@@ -459,14 +449,14 @@ describe("VRFCoordinatorV2", function () {
           deployVRFCoordinatorV2,
         );
         await VRFCoordinatorV2.connect(alice).createSubscription();
-        await VRFCoordinatorV2.connect(alice).charge(10, 1, { value: 11 });
+        await VRFCoordinatorV2.connect(alice).charge(1, { value: 11 });
         expect(await VRFCoordinatorV2.getSubscription(1)).to.be.deep.equal([
-          10,
+          11,
           0,
           alice.address,
           [],
         ]);
-        expect(await VRFCoordinatorV2.getTotalBalance()).to.be.equal(10);
+        expect(await VRFCoordinatorV2.getTotalBalance()).to.be.equal(11);
       });
     });
   });
@@ -982,7 +972,6 @@ describe("VRFCoordinatorV2", function () {
         } = await loadFixture(deployVRFCoordinatorV2andInit);
 
         await VRFCoordinatorV2.connect(alice).charge(
-          ethers.utils.parseUnits("1.0"),
           1,
           { value: ethers.utils.parseUnits("2.0") },
         );
@@ -1008,7 +997,6 @@ describe("VRFCoordinatorV2", function () {
         } = await loadFixture(deployVRFCoordinatorV2andInit);
 
         await VRFCoordinatorV2.connect(alice).charge(
-          ethers.utils.parseUnits("1.0"),
           1,
           { value: ethers.utils.parseUnits("2.0") },
         );
@@ -1020,7 +1008,7 @@ describe("VRFCoordinatorV2", function () {
           oracle.address,
         );
         expect(oracleafterBalance.sub(oracleStartBalance)).to.be.equal(
-          ethers.utils.parseUnits("1.0"),
+          ethers.utils.parseUnits("0"),
         );
       });
     });

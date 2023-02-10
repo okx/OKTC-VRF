@@ -92,7 +92,6 @@ describe("VRFWrapperV2", function () {
       .setConfig(1e9, 10000, 8000, 0, keyHash, 2);
 
     await VRFCoordinatorV2.connect(owner).charge(
-      ethers.utils.parseUnits("1.0"),
       1,
       { value: ethers.utils.parseUnits("1.0") },
     );
@@ -433,11 +432,11 @@ describe("VRFWrapperV2", function () {
 
   describe("fulfillRandomness", function () {
     describe("Validations", function () {
-      it("Should revert because of no permission to deregisterProvingKey", async function () {});
+      it("Should revert because of no permission to deregisterProvingKey", async function () { });
     });
 
     describe("Events", function () {
-      it("Should emit event ProvingKeyDeregistered on changeRequireAprove", async function () {});
+      it("Should emit event ProvingKeyDeregistered on changeRequireAprove", async function () { });
     });
 
     describe("Transfers", function () {

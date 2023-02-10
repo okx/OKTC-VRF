@@ -3,7 +3,7 @@ const { expect } = require("chai");
 const ProxyAdmin = require("@openzeppelin/contracts/build/contracts/ProxyAdmin.json");
 const TransparentUpgradeableProxy = require("@openzeppelin/contracts/build/contracts/TransparentUpgradeableProxy.json");
 
-describe("VRFCoordinatorV2", function () {
+describe("VRFConsumerExample", function () {
     async function deployVRFCoordinatorV2() {
         const [owner, oracle, alice, bob] = await ethers.getSigners();
         const BlockhashStoreFactory = await ethers.getContractFactory(
@@ -103,7 +103,6 @@ describe("VRFCoordinatorV2", function () {
             .deploy(1, VRFCoordinatorV2.address, keyHash, 500000, 20, 2);
 
         await VRFCoordinatorV2.connect(alice).charge(
-            ethers.utils.parseUnits("1.0"),
             1,
             { value: ethers.utils.parseUnits("1.0") },
         );
