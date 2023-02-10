@@ -84,9 +84,8 @@ abstract contract VRFV2WrapperConsumerBase is Ownable {
         uint256 requestPrice = VRF_V2_WRAPPER.calculateRequestPrice(
             _callbackGasLimit
         );
-        VRF_V2_WRAPPER.charge{value: msg.value}(
+        VRF_V2_WRAPPER.charge{value: requestPrice}(
             address(this),
-            requestPrice,
             abi.encode(_callbackGasLimit, _requestConfirmations, _numWords)
         );
         lastRequestId = VRF_V2_WRAPPER.lastRequestId();

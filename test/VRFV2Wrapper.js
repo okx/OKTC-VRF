@@ -220,7 +220,7 @@ describe("VRFWrapperV2", function () {
         );
         await mockVRFV2Wrapper
           .connect(owner)
-          .withdraw(bob.address, ethers.utils.parseUnits("1"));
+          .withdraw(bob.address, ethers.utils.parseUnits("0.000001"));
         const afterWithDrawAliceBalance = await ethers.provider.getBalance(
           bob.address,
         );
@@ -313,24 +313,6 @@ describe("VRFWrapperV2", function () {
 
   describe("charge", function () {
     describe("Validations", function () {
-      it("Should revert because of too less OKT transfered", async function () {
-        const {
-          VRFCoordinatorV2,
-          mockVRFV2Wrapper,
-          mockVRFV2WrapperConsumerExample,
-          owner,
-          oracle,
-          alice,
-        } = await loadFixture(deploy);
-        await expect(
-          mockVRFV2WrapperConsumerExample
-            .connect(owner)
-            .requestRandomness(50000, 20, 1, {
-              gasPrice: ethers.utils.parseUnits("1", "gwei"),
-              value: ethers.utils.parseUnits("0.0000001"),
-            }),
-        ).to.be.revertedWith(`VRFV2Wrapper::charge:send not enough okt`);
-      });
       it("Should revert because of too low gasprice", async function () {
         const {
           VRFCoordinatorV2,
@@ -361,9 +343,9 @@ describe("VRFWrapperV2", function () {
         await expect(
           mockVRFV2WrapperConsumerExample
             .connect(owner)
-            .requestRandomnessForTest(50000, 20, 100, {
+            .requestRandomnessForTest(50000, 20, 1, {
               gasPrice: ethers.utils.parseUnits("1", "gwei"),
-              value: ethers.utils.parseUnits("0.001"),
+              value: ethers.utils.parseUnits("0.00001"),
             }),
         ).to.be.revertedWith(`VRFV2Wrapper::charge: fee too low`);
       });

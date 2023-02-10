@@ -239,15 +239,13 @@ contract VRFV2Wrapper is
      * @inheritdoc VRFV2WrapperInterface
      */
 
-    function charge(
-        address _sender,
-        uint256 _amount,
-        bytes calldata _data
-    ) external payable override onlyConfiguredNotDisabled {
-        require(
-            msg.value >= _amount,
-            "VRFV2Wrapper::charge:send not enough okt"
-        );
+    function charge(address _sender, bytes calldata _data)
+        external
+        payable
+        override
+        onlyConfiguredNotDisabled
+    {
+        uint256 _amount = msg.value;
 
         (
             uint32 callbackGasLimit,
