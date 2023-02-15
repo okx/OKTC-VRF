@@ -45,6 +45,8 @@ contract VRFConsumerExample is VRFConsumerBaseV2 {
         numWords = _numWords;
     }
 
+    function cancelRequest(uint256 requestID) internal override {}
+
     function setConfig(
         uint64 subscriptionId,
         address VRFCoordinatorV2Interfaceaddr,

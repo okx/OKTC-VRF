@@ -51,7 +51,11 @@ interface VRFCoordinatorV2Interface is TypeAndVersionInterface {
         uint32 numWords;
         address sender;
     }
-
+    struct RequestInformation {
+        uint256 blockNum;
+        address sender;
+        bytes32 requestHash;
+    }
     event FundsRecovered(address to, uint256 amount);
     event OracleWithdraw(address to, uint256 amount);
     event SubscriptionCreated(uint64 indexed subId, address owner);

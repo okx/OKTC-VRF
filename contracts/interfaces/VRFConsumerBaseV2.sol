@@ -96,6 +96,7 @@ pragma solidity ^0.8.7;
  */
 abstract contract VRFConsumerBaseV2 {
     error OnlyCoordinatorCanFulfill(address have, address want);
+    error OnlyCoordinatorCanCancelRequest(address have, address want);
     address public vrfCoordinator;
 
     /**
@@ -128,4 +129,13 @@ abstract contract VRFConsumerBaseV2 {
         }
         fulfillRandomWords(requestId, randomWords);
     }
+
+    function rawCancelRequest(uint256 requestId) external {
+        if (msg.sender != vrfCoordinator) {
+            revert OnlyCoordinatorCanCancelRequest(msg.sender, vrfCoordinator);
+        }
+        cancelRequest(requestId);
+    }
+
+    function cancelRequest(uint256 requestID) internal virtual;
 }

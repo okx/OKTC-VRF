@@ -50,6 +50,8 @@ contract mockVRFConsumerExample is VRFConsumerBaseV2 {
         numWords = _numWords;
     }
 
+    function cancelRequest(uint256 requestID) internal override {}
+
     // Assumes the subscription is funded sufficiently.
     function requestRandomWords()
         external

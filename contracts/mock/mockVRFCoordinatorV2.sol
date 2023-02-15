@@ -7,6 +7,7 @@ import "../interfaces/TypeAndVersionInterface.sol";
 import "../interfaces/VRFConsumerBaseV2.sol";
 import "../VRF.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "hardhat/console.sol";
 
 contract MockVRFCoordinatorV2 is
@@ -163,6 +164,11 @@ contract MockVRFCoordinatorV2 is
         address sender;
     }
 
+    struct RequestInformation {
+        uint256 blockNum;
+        address sender;
+        bytes32 requestHash;
+    }
     mapping(address => mapping(uint64 => uint64)) /* consumer */ /* subId */ /* nonce */
         public s_consumers;
     mapping(uint64 => SubscriptionConfig) /* subId */ /* subscriptionConfig */
@@ -172,10 +178,22 @@ contract MockVRFCoordinatorV2 is
     mapping(bytes32 => address) /* keyHash */ /* oracle */
         public s_provingKeys;
     bytes32[] public s_provingKeyHashes;
-    mapping(uint256 => bytes32) /* requestID */ /* commitment */
+    mapping(uint256 => RequestInformation) /* requestID */ /* commitment */
         public s_requestCommitments;
     mapping(bytes32 => uint256) /* keyhash */ /* gasprice */
         public s_gasPrice;
+
+    function cancelRequest(uint256 requestID) public nonReentrant {
+        require(
+            s_requestCommitments[requestID].blockNum +
+                MAX_REQUEST_CONFIRMATIONS <
+                block.number,
+            "Not TimeOut"
+        );
+        VRFConsumerBaseV2(s_requestCommitments[requestID].sender)
+            .rawCancelRequest(requestID);
+        delete s_requestCommitments[requestID];
+    }
 
     function initialize(uint16 maxconsumer, address blockhashStore)
         public
@@ -388,7 +406,7 @@ contract MockVRFCoordinatorV2 is
                     subId,
                     s_consumers[subConfig.consumers[i]][subId]
                 );
-                if (s_requestCommitments[reqId] != 0) {
+                if (s_requestCommitments[reqId].requestHash != 0) {
                     return true;
                 }
             }
@@ -459,16 +477,21 @@ contract MockVRFCoordinatorV2 is
             nonce
         );
 
-        s_requestCommitments[requestId] = keccak256(
-            abi.encode(
-                requestId,
-                block.number,
-                subId,
-                callbackGasLimit,
-                numWords,
-                msg.sender
+        s_requestCommitments[requestId] = RequestInformation(
+            block.number,
+            msg.sender,
+            keccak256(
+                abi.encode(
+                    requestId,
+                    block.number,
+                    subId,
+                    callbackGasLimit,
+                    numWords,
+                    msg.sender
+                )
             )
         );
+
         emit RandomWordsRequested(
             keyHash,
             requestId,
@@ -492,7 +515,7 @@ contract MockVRFCoordinatorV2 is
      * @dev used to determine if a request is fulfilled or not
      */
     function getCommitment(uint256 requestId) external view returns (bytes32) {
-        return s_requestCommitments[requestId];
+        return s_requestCommitments[requestId].requestHash;
     }
 
     function computeRequestId(
@@ -572,7 +595,7 @@ contract MockVRFCoordinatorV2 is
             revert NoSuchProvingKey(keyHash);
         }
         requestId = uint256(keccak256(abi.encode(keyHash, proof.seed)));
-        bytes32 commitment = s_requestCommitments[requestId];
+        bytes32 commitment = s_requestCommitments[requestId].requestHash;
         if (commitment == 0) {
             revert NoCorrespondingRequest();
         }

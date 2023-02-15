@@ -128,4 +128,14 @@ abstract contract VRFV2WrapperConsumerBase is Ownable {
         );
         fulfillRandomWords(_requestId, _randomWords);
     }
+
+    function cancelRequest(uint256 requestID) internal virtual;
+
+    function rawCancelRequest(uint256 requestId) external {
+        require(
+            msg.sender == address(VRF_V2_WRAPPER),
+            "only VRF V2 wrapper can cancelRequest"
+        );
+        cancelRequest(requestId);
+    }
 }

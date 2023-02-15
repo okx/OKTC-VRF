@@ -4,6 +4,7 @@ pragma solidity ^0.8.7;
 import "./interfaces/VRFCoordinatorV2Interface.sol";
 import "./libraries/Errors.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./VRF.sol";
 
 contract VRFCoordinatorV2 is
@@ -45,10 +46,22 @@ contract VRFCoordinatorV2 is
     mapping(bytes32 => address) /* keyHash */ /* oracle */
         private s_provingKeys;
     bytes32[] private s_provingKeyHashes;
-    mapping(uint256 => bytes32) /* requestID */ /* commitment */
+    mapping(uint256 => RequestInformation) /* requestID */ /* commitment */
         private s_requestCommitments;
     mapping(bytes32 => uint256) /* keyhash */ /* gasprice */
         public s_gasPrice;
+
+    function cancelRequest(uint256 requestID) public nonReentrant {
+        require(
+            s_requestCommitments[requestID].blockNum +
+                MAX_REQUEST_CONFIRMATIONS <
+                block.number,
+            "Not TimeOut"
+        );
+        VRFConsumerBaseV2(s_requestCommitments[requestID].sender)
+            .rawCancelRequest(requestID);
+        delete s_requestCommitments[requestID];
+    }
 
     function initialize(address blockhashStore) public initializer {
         __Ownable2Step_init();
@@ -259,7 +272,7 @@ contract VRFCoordinatorV2 is
                     subId,
                     s_consumers[subConfig.consumers[i]][subId]
                 );
-                if (s_requestCommitments[reqId] != 0) {
+                if (s_requestCommitments[reqId].requestHash != 0) {
                     return true;
                 }
             }
@@ -333,16 +346,21 @@ contract VRFCoordinatorV2 is
             nonce
         );
 
-        s_requestCommitments[requestId] = keccak256(
-            abi.encode(
-                requestId,
-                block.number,
-                subId,
-                callbackGasLimit,
-                numWords,
-                msg.sender
+        s_requestCommitments[requestId] = RequestInformation(
+            block.number,
+            msg.sender,
+            keccak256(
+                abi.encode(
+                    requestId,
+                    block.number,
+                    subId,
+                    callbackGasLimit,
+                    numWords,
+                    msg.sender
+                )
             )
         );
+
         emit RandomWordsRequested(
             keyHash,
             requestId,
@@ -366,7 +384,7 @@ contract VRFCoordinatorV2 is
      * @dev used to determine if a request is fulfilled or not
      */
     function getCommitment(uint256 requestId) external view returns (bytes32) {
-        return s_requestCommitments[requestId];
+        return s_requestCommitments[requestId].requestHash;
     }
 
     function computeRequestId(
@@ -446,7 +464,7 @@ contract VRFCoordinatorV2 is
             revert Errors.NoSuchProvingKey(keyHash);
         }
         requestId = uint256(keccak256(abi.encode(keyHash, proof.seed)));
-        bytes32 commitment = s_requestCommitments[requestId];
+        bytes32 commitment = s_requestCommitments[requestId].requestHash;
         if (commitment == 0) {
             revert Errors.NoCorrespondingRequest();
         }
@@ -554,7 +572,6 @@ contract VRFCoordinatorV2 is
             revert Errors.InsufficientBalance();
         }
         s_subscriptions[rc.subId].balance -= payment;
-
         (bool transfer, ) = payable(s_provingKeys[keyHash]).call{
             value: payment,
             gas: 8000
