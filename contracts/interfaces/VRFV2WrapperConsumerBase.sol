@@ -29,7 +29,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 abstract contract VRFV2WrapperConsumerBase is Ownable {
     VRFV2WrapperInterface public immutable VRF_V2_WRAPPER;
-    event RequestSent(uint256 requestId, uint32 numWords);
 
     struct RequestStatus {
         uint256 paid; // amount paid in OKT
