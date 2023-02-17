@@ -778,15 +778,15 @@ contract MockVRFCoordinatorV2 is
                 amount
             );
         for (uint64 i = 0; i < amount; i++) {
+            uint64 currentSubId = subId + i + 1 - amount;
             subscriptionInformation[i] = SubscriptionInformation(
-                s_subscriptions[subId - amount + i + 1].balance,
-                s_subscriptions[subId - amount + i + 1].reqCount,
-                s_subscriptions[subId - amount + i + 1].reqSuccessCount,
-                s_subscriptions[subId - amount + i + 1].createTime,
-                s_subscriptionConfigs[subId - amount + i + 1].owner,
-                !(s_subscriptionConfigs[subId - amount + i + 1].owner ==
-                    address(0)),
-                s_subscriptionConfigs[subId - amount + i + 1].consumers
+                s_subscriptions[currentSubId].balance,
+                s_subscriptions[currentSubId].reqCount,
+                s_subscriptions[currentSubId].reqSuccessCount,
+                s_subscriptions[currentSubId].createTime,
+                s_subscriptionConfigs[currentSubId].owner,
+                !(s_subscriptionConfigs[currentSubId].owner == address(0)),
+                s_subscriptionConfigs[currentSubId].consumers
             );
         }
         return subscriptionInformation;
