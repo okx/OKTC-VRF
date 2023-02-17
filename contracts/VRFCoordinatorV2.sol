@@ -645,6 +645,7 @@ contract VRFCoordinatorV2 is
                 s_subscriptions[subId - amount + i + 1].balance,
                 s_subscriptions[subId - amount + i + 1].reqCount,
                 s_subscriptions[subId - amount + i + 1].reqSuccessCount,
+                s_subscriptions[subId - amount + i + 1].createTime,
                 s_subscriptionConfigs[subId - amount + i + 1].owner,
                 !(s_subscriptionConfigs[subId - amount + i + 1].owner ==
                     address(0)),

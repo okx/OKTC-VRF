@@ -162,6 +162,7 @@ contract MockVRFCoordinatorV2 is
         uint96 balance;
         uint64 reqCount;
         uint64 reqSuccessCount;
+        uint256 createTime;
         address owner;
         bool active;
         address[] consumers;
@@ -781,6 +782,7 @@ contract MockVRFCoordinatorV2 is
                 s_subscriptions[subId - amount + i + 1].balance,
                 s_subscriptions[subId - amount + i + 1].reqCount,
                 s_subscriptions[subId - amount + i + 1].reqSuccessCount,
+                s_subscriptions[subId - amount + i + 1].createTime,
                 s_subscriptionConfigs[subId - amount + i + 1].owner,
                 !(s_subscriptionConfigs[subId - amount + i + 1].owner ==
                     address(0)),

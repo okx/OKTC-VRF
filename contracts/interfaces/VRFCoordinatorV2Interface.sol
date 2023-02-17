@@ -50,6 +50,7 @@ interface VRFCoordinatorV2Interface is TypeAndVersionInterface {
         uint96 balance;
         uint64 reqCount;
         uint64 reqSuccessCount;
+        uint256 createTime;
         address owner;
         bool active;
         address[] consumers;
