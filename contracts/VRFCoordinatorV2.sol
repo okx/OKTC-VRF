@@ -543,7 +543,9 @@ contract VRFCoordinatorV2 is
 
         uint64 reqCount = s_subscriptions[rc.subId].reqCount;
         s_subscriptions[rc.subId].reqCount += 1;
-
+        if (success) {
+            s_subscriptions[rc.subId].reqSuccessCount += 1;
+        }
         uint96 payment = calculatePaymentAmount(
             startGas,
             s_config.gasAfterPaymentCalculation,
@@ -626,6 +628,32 @@ contract VRFCoordinatorV2 is
         );
     }
 
+    function getBatchSubscription(uint64 subId, uint64 amount)
+        external
+        view
+        returns (SubscriptionInformation[] memory)
+    {
+        if (amount >= subId) {
+            revert Errors.InvalidSubscription();
+        }
+        SubscriptionInformation[]
+            memory subscriptionInformation = new SubscriptionInformation[](
+                amount
+            );
+        for (uint64 i = 0; i < amount; i++) {
+            subscriptionInformation[i] = SubscriptionInformation(
+                s_subscriptions[subId - amount + i + 1].balance,
+                s_subscriptions[subId - amount + i + 1].reqCount,
+                s_subscriptions[subId - amount + i + 1].reqSuccessCount,
+                s_subscriptionConfigs[subId - amount + i + 1].owner,
+                !(s_subscriptionConfigs[subId - amount + i + 1].owner ==
+                    address(0)),
+                s_subscriptionConfigs[subId - amount + i + 1].consumers
+            );
+        }
+        return subscriptionInformation;
+    }
+
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
@@ -638,7 +666,12 @@ contract VRFCoordinatorV2 is
         s_currentSubId++;
         uint64 currentSubId = s_currentSubId;
         address[] memory consumers = new address[](0);
-        s_subscriptions[currentSubId] = Subscription({balance: 0, reqCount: 0});
+        s_subscriptions[currentSubId] = Subscription({
+            balance: 0,
+            reqCount: 0,
+            reqSuccessCount: 0,
+            createTime: block.timestamp
+        });
         s_subscriptionConfigs[currentSubId] = SubscriptionConfig({
             owner: msg.sender,
             requestedOwner: address(0),
