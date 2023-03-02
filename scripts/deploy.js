@@ -8,31 +8,30 @@ require("dotenv").config();
 async function main() {
   let proxyAdminAddress = await delpoyProxyAdmin();
   let BlockhashStoreAddress = await delpoyBlockhashStore();
-  // let VRFCoordinatorV2Address = await delpoyVRFCoordinatorV2(
-  //   proxyAdminAddress.address,
-  // );
-  let VRFCoordinatorV2Address = "0x37c50d866Cbc39F8F74daD711121C205D645097B"
+  let VRFCoordinatorV2Address = await delpoyVRFCoordinatorV2(
+    proxyAdminAddress.address,
+  );
 
   let VRFV2WrapperAddress = await delpoyVRFV2Wrapper(proxyAdminAddress.address);
 
   await initAllContracts(
     BlockhashStoreAddress.address,
-    // VRFCoordinatorV2Address.address,
+    VRFCoordinatorV2Address.address,
     VRFCoordinatorV2Address,
     VRFV2WrapperAddress.address,
   );
   await setConfigAllContracts(
     VRFCoordinatorV2Address,
-    // VRFCoordinatorV2Address.address,
+    VRFCoordinatorV2Address.address,
     VRFV2WrapperAddress.address,
   );
 
   await createWrapperModuleConsumer(
     VRFCoordinatorV2Address,
-    // VRFCoordinatorV2Address.address,
+    VRFCoordinatorV2Address.address,
     VRFV2WrapperAddress.address,
   );
-  // await createSubModuleConsumer(VRFCoordinatorV2Address.address);
+  await createSubModuleConsumer(VRFCoordinatorV2Address.address);
 }
 
 async function delpoyProxyAdmin() {
@@ -134,8 +133,8 @@ async function initAllContracts(
 
   console.log("-------------- start initializing --------------");
 
-  // await (await VRFCoordinatorV2Proxy.initialize(BlockhashStoreAddress)).wait();
-  // console.log("VRFCoordinatorV2 initialized");
+  await (await VRFCoordinatorV2Proxy.initialize(BlockhashStoreAddress)).wait();
+  console.log("VRFCoordinatorV2 initialized");
 
   await (await VRFV2WrapperProxy.initialize(VRFCoordinatorV2Address)).wait();
   console.log("VRFV2Wrapper initialized");
@@ -158,30 +157,30 @@ async function setConfigAllContracts(
 
   console.log("-------------- start setConfig --------------");
 
-  // await (
-  //   await VRFCoordinatorV2Proxy.setConfig(
-  //     settings.VRFCoordinatorV2Config.minimumRequestConfirmations,
-  //     settings.VRFCoordinatorV2Config.maxGasLimit,
-  //     settings.VRFCoordinatorV2Config.maxGasPrice,
-  //     settings.VRFCoordinatorV2Config.gasAfterPaymentCalculation,
-  //     settings.VRFCoordinatorV2Config.feeConfig,
-  //   )
-  // ).wait();
+  await (
+    await VRFCoordinatorV2Proxy.setConfig(
+      settings.VRFCoordinatorV2Config.minimumRequestConfirmations,
+      settings.VRFCoordinatorV2Config.maxGasLimit,
+      settings.VRFCoordinatorV2Config.maxGasPrice,
+      settings.VRFCoordinatorV2Config.gasAfterPaymentCalculation,
+      settings.VRFCoordinatorV2Config.feeConfig,
+    )
+  ).wait();
 
-  // console.log("VRFCoordinatorV2 has setted config");
+  console.log("VRFCoordinatorV2 has setted config");
 
-  // await (
-  //   await VRFCoordinatorV2Proxy.registerProvingKey(
-  //     settings.Oracle[0].address,
-  //     settings.Oracle[0].pk,
-  //     await VRFCoordinatorV2Proxy.MAX_GAS_PRICE(),
-  //   )
-  // ).wait();
+  await (
+    await VRFCoordinatorV2Proxy.registerProvingKey(
+      settings.Oracle[0].address,
+      settings.Oracle[0].pk,
+      await VRFCoordinatorV2Proxy.MAX_GAS_PRICE(),
+    )
+  ).wait();
   let keyHash = await VRFCoordinatorV2Proxy.hashOfKey(settings.Oracle[0].pk);
-  // console.log(
-  //   "Oracle has registered " + settings.Oracle[0].address,
-  //   "\nOracle's keyhash " + keyHash,
-  // );
+  console.log(
+    "Oracle has registered " + settings.Oracle[0].address,
+    "\nOracle's keyhash " + keyHash,
+  );
 
   await (
     await VRFV2WrapperProxy.setConfig(
@@ -200,58 +199,58 @@ async function setConfigAllContracts(
   return VRFCoordinatorV2Proxy, VRFV2WrapperProxy;
 }
 
-// async function createSubModuleConsumer(VRFCoordinatorV2Address) {
-//   let VRFCoordinatorV2 = await ethers.getContractFactory("VRFCoordinatorV2");
+async function createSubModuleConsumer(VRFCoordinatorV2Address) {
+  let VRFCoordinatorV2 = await ethers.getContractFactory("VRFCoordinatorV2");
 
-//   let VRFCoordinatorV2Proxy = await VRFCoordinatorV2.attach(
-//     VRFCoordinatorV2Address,
-//   );
+  let VRFCoordinatorV2Proxy = await VRFCoordinatorV2.attach(
+    VRFCoordinatorV2Address,
+  );
 
-//   console.log("-------------- start createSubModuleConsumer --------------");
-//   let keyHash = await VRFCoordinatorV2Proxy.hashOfKey(settings.Oracle[0].pk);
-//   await (await VRFCoordinatorV2Proxy.createSubscription()).wait();
-//   let consumerSubId = await VRFCoordinatorV2Proxy.getCurrentSubId();
-//   console.log("Consumer's sub has created and the SubId is " + consumerSubId);
+  console.log("-------------- start createSubModuleConsumer --------------");
+  let keyHash = await VRFCoordinatorV2Proxy.hashOfKey(settings.Oracle[0].pk);
+  await (await VRFCoordinatorV2Proxy.createSubscription()).wait();
+  let consumerSubId = await VRFCoordinatorV2Proxy.getCurrentSubId();
+  console.log("Consumer's sub has created and the SubId is " + consumerSubId);
 
-//   await (
-//     await VRFCoordinatorV2Proxy.charge(
-//       ethers.utils.parseUnits("0.001"),
-//       consumerSubId,
-//       { value: ethers.utils.parseUnits("0.001") },
-//     )
-//   ).wait();
-//   console.log("Has charge 0.001 OKT for SubId " + consumerSubId);
+  await (
+    await VRFCoordinatorV2Proxy.charge(
+      ethers.utils.parseUnits("0.001"),
+      consumerSubId,
+      { value: ethers.utils.parseUnits("0.001") },
+    )
+  ).wait();
+  console.log("Has charge 0.001 OKT for SubId " + consumerSubId);
 
-//   let VRFConsumerExampleFactory = await ethers.getContractFactory(
-//     "VRFConsumerExample",
-//   );
+  let VRFConsumerExampleFactory = await ethers.getContractFactory(
+    "VRFConsumerExample",
+  );
 
-//   let VRFConsumerExample = await VRFConsumerExampleFactory.deploy(
-//     consumerSubId,
-//     VRFCoordinatorV2Proxy.address,
-//     keyHash,
-//     settings.VRFCoordinatorV2ConsumerConstructor.callbackGasLimit,
-//     settings.VRFCoordinatorV2ConsumerConstructor.requestConfirmations,
-//     settings.VRFCoordinatorV2ConsumerConstructor.numWords,
-//   );
-//   await VRFConsumerExample.deployed();
-//   console.log(
-//     "The " + consumerSubId + " SubId's Consumer deployed to:",
-//     VRFConsumerExample.address,
-//   );
+  let VRFConsumerExample = await VRFConsumerExampleFactory.deploy(
+    consumerSubId,
+    VRFCoordinatorV2Proxy.address,
+    keyHash,
+    settings.VRFCoordinatorV2ConsumerConstructor.callbackGasLimit,
+    settings.VRFCoordinatorV2ConsumerConstructor.requestConfirmations,
+    settings.VRFCoordinatorV2ConsumerConstructor.numWords,
+  );
+  await VRFConsumerExample.deployed();
+  console.log(
+    "The " + consumerSubId + " SubId's Consumer deployed to:",
+    VRFConsumerExample.address,
+  );
 
-//   await (
-//     await VRFCoordinatorV2Proxy.addConsumer(
-//       consumerSubId,
-//       VRFConsumerExample.address,
-//       { gasLimit: 500000 },
-//     )
-//   ).wait();
+  await (
+    await VRFCoordinatorV2Proxy.addConsumer(
+      consumerSubId,
+      VRFConsumerExample.address,
+      { gasLimit: 500000 },
+    )
+  ).wait();
 
-//   console.log("-------------- finish createSubModuleConsumer --------------\n");
+  console.log("-------------- finish createSubModuleConsumer --------------\n");
 
-//   return VRFCoordinatorV2Proxy;
-// }
+  return VRFCoordinatorV2Proxy;
+}
 
 async function createWrapperModuleConsumer(
   VRFCoordinatorV2Address,
