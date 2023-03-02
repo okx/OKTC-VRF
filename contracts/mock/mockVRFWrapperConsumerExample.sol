@@ -37,7 +37,6 @@ contract mockVRFV2WrapperConsumerExample is VRFV2WrapperConsumerBase {
     ) external payable returns (uint256 requestId) {
         VRF_V2_WRAPPER.charge{value: msg.value}(
             address(this),
-            VRF_V2_WRAPPER.calculateRequestPrice(_callbackGasLimit) - 1,
             abi.encode(_callbackGasLimit, _requestConfirmations, _numWords)
         );
         return VRF_V2_WRAPPER.lastRequestId();

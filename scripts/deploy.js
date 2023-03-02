@@ -11,6 +11,7 @@ async function main() {
   let VRFCoordinatorV2Address = await delpoyVRFCoordinatorV2(
     proxyAdminAddress.address,
   );
+
   let VRFV2WrapperAddress = await delpoyVRFV2Wrapper(proxyAdminAddress.address);
 
   await initAllContracts(
@@ -165,18 +166,20 @@ async function setConfigAllContracts(
 
   console.log("VRFCoordinatorV2 has setted config");
 
-  await (
-    await VRFCoordinatorV2Proxy.registerProvingKey(
-      settings.Oracle[0].address,
-      settings.Oracle[0].pk,
-      await VRFCoordinatorV2Proxy.MAX_GAS_PRICE(),
-    )
-  ).wait();
-  let keyHash = await VRFCoordinatorV2Proxy.hashOfKey(settings.Oracle[0].pk);
-  console.log(
-    "Oracle has registered " + settings.Oracle[0].address,
-    "\nOracle's keyhash " + keyHash,
-  );
+  for (let i = 0; i < 4; i++) {
+    await (
+      await VRFCoordinatorV2Proxy.registerProvingKey(
+        settings.Oracle[i].address,
+        settings.Oracle[i].pk,
+        settings.Oracle[i].gasprice,
+      )
+    ).wait();
+    keyHash = await VRFCoordinatorV2Proxy.hashOfKey(settings.Oracle[i].pk);
+    console.log(
+      "Oracle " + i + " has registered " + settings.Oracle[i].address,
+      "\nOracle " + i + " 's keyhash " + keyHash,
+    );
+  }
 
   await (
     await VRFV2WrapperProxy.setConfig(
@@ -184,7 +187,7 @@ async function setConfigAllContracts(
       settings.VRFV2WrapperConfig._wrapperGasOverhead,
       settings.VRFV2WrapperConfig._coordinatorGasOverhead,
       settings.VRFV2WrapperConfig._wrapperPremiumPercentage,
-      keyHash,
+      await VRFCoordinatorV2Proxy.hashOfKey(settings.Oracle[0].pk),
       settings.VRFV2WrapperConfig._maxNumWords,
     )
   ).wait();
@@ -210,7 +213,6 @@ async function createSubModuleConsumer(VRFCoordinatorV2Address) {
 
   await (
     await VRFCoordinatorV2Proxy.charge(
-      ethers.utils.parseUnits("0.001"),
       consumerSubId,
       { value: ethers.utils.parseUnits("0.001") },
     )
@@ -271,7 +273,6 @@ async function createWrapperModuleConsumer(
 
   await (
     await VRFCoordinatorV2Proxy.charge(
-      ethers.utils.parseUnits("0.001"),
       wrapperSubId,
       { value: ethers.utils.parseUnits("0.001") },
     )

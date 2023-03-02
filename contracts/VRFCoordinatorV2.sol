@@ -14,7 +14,7 @@ contract VRFCoordinatorV2 is
     // We need to maintain a list of consuming addresses.
     // This bound ensures we are able to loop over them as needed.
     // Should a user require more consumers, they can use multiple subscriptions.
-    uint16 public constant MAX_CONSUMERS = 200;
+    uint16 public constant MAX_CONSUMERS = 100;
     // We make the sub count public so that its possible to
     // get all the current subscriptions via getSubscription.
     uint64 private s_currentSubId;
@@ -232,7 +232,7 @@ contract VRFCoordinatorV2 is
         if (internalBalance < externalBalance) {
             uint256 amount = externalBalance - internalBalance;
 
-            (bool success, ) = payable(to).call{value: amount, gas: 8000}("");
+            (bool success, ) = payable(to).call{value: amount}("");
             require(success, "VRFCoordinatorV2::sendOKT: transfer OKT failed");
 
             emit FundsRecovered(to, amount);
@@ -354,7 +354,7 @@ contract VRFCoordinatorV2 is
             msg.sender,
             tx.origin
         );
-        BlockhashStoreInterface(BLOCKHASH_STORE).store(block.number - 1);
+
         s_consumers[msg.sender][subId] = nonce;
 
         return requestId;
@@ -466,9 +466,9 @@ contract VRFCoordinatorV2 is
             revert Errors.IncorrectCommitment();
         }
 
-        bytes32 blockHash = blockhash(rc.blockNum - 1);
+        bytes32 blockHash = blockhash(rc.blockNum);
         if (blockHash == bytes32(0)) {
-            blockHash = BLOCKHASH_STORE.getBlockhash(rc.blockNum - 1);
+            blockHash = BLOCKHASH_STORE.getBlockhash(rc.blockNum);
             if (blockHash == bytes32(0)) {
                 revert Errors.BlockhashNotInStore(rc.blockNum);
             }
@@ -543,7 +543,9 @@ contract VRFCoordinatorV2 is
 
         uint64 reqCount = s_subscriptions[rc.subId].reqCount;
         s_subscriptions[rc.subId].reqCount += 1;
-
+        if (success) {
+            s_subscriptions[rc.subId].reqSuccessCount += 1;
+        }
         uint96 payment = calculatePaymentAmount(
             startGas,
             s_config.gasAfterPaymentCalculation,
@@ -554,14 +556,14 @@ contract VRFCoordinatorV2 is
             revert Errors.InsufficientBalance();
         }
         s_subscriptions[rc.subId].balance -= payment;
+
         (bool transfer, ) = payable(s_provingKeys[keyHash]).call{
             value: payment,
             gas: 8000
         }("");
-        require(
-            transfer,
-            "VRFCoordinatorV2::fulfillRandomWords: transfer OKT failed"
-        );
+        if (!transfer) {
+            revert Errors.OKTTransferFailed();
+        }
         emit RandomWordsFulfilled(requestId, randomness, payment, success);
         return payment;
     }
@@ -582,18 +584,10 @@ contract VRFCoordinatorV2 is
     /**
      * @notice user call this function to add balance for subId.
      *
-     * @param amount is the OKT amount user send to this contract
      * @param subId is the target for add balance.
      */
-    function charge(uint256 amount, uint64 subId)
-        external
-        payable
-        nonReentrant
-    {
-        require(
-            msg.value >= amount,
-            "VRFCoordinatorV2::charge: send not enough okt"
-        );
+    function charge(uint64 subId) external payable nonReentrant {
+        uint256 amount = msg.value;
         if (s_subscriptionConfigs[subId].owner == address(0)) {
             revert Errors.InvalidSubscription();
         }
@@ -634,6 +628,33 @@ contract VRFCoordinatorV2 is
         );
     }
 
+    function getBatchSubscription(uint64 subId, uint64 amount)
+        external
+        view
+        returns (SubscriptionInformation[] memory)
+    {
+        if (amount >= subId) {
+            revert Errors.InvalidSubscription();
+        }
+        SubscriptionInformation[]
+            memory subscriptionInformation = new SubscriptionInformation[](
+                amount
+            );
+        for (uint64 i = 0; i < amount; i++) {
+            uint64 currentSubId = subId + i + 1 - amount;
+            subscriptionInformation[i] = SubscriptionInformation(
+                s_subscriptions[currentSubId].balance,
+                s_subscriptions[currentSubId].reqCount,
+                s_subscriptions[currentSubId].reqSuccessCount,
+                s_subscriptions[currentSubId].createTime,
+                s_subscriptionConfigs[currentSubId].owner,
+                !(s_subscriptionConfigs[currentSubId].owner == address(0)),
+                s_subscriptionConfigs[currentSubId].consumers
+            );
+        }
+        return subscriptionInformation;
+    }
+
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
@@ -646,7 +667,12 @@ contract VRFCoordinatorV2 is
         s_currentSubId++;
         uint64 currentSubId = s_currentSubId;
         address[] memory consumers = new address[](0);
-        s_subscriptions[currentSubId] = Subscription({balance: 0, reqCount: 0});
+        s_subscriptions[currentSubId] = Subscription({
+            balance: 0,
+            reqCount: 0,
+            reqSuccessCount: 0,
+            createTime: block.timestamp
+        });
         s_subscriptionConfigs[currentSubId] = SubscriptionConfig({
             owner: msg.sender,
             requestedOwner: address(0),

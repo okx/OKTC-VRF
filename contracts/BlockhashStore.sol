@@ -25,6 +25,37 @@ contract BlockhashStore {
     }
 
     /**
+     * @notice stores blockhash of a range of given blocks, assuming it is available through BLOCKHASH
+     * @param n the first number of the block whose blockhash should be stored
+     * @param m the last number of the block whose blockhash should be stored
+     */
+    function storeBatch(uint256 n, uint256 m) public {
+        require(m > n, "m should above n");
+        require(blockhash(n) != 0x0, "blockhash(n) failed");
+        for (uint256 i = n; i <= m; i++) {
+            s_blockhashes[i] = blockhash(i);
+        }
+    }
+
+    /**
+     * @notice stores blockhash of a range of given blocks, assuming it is available through BLOCKHASH
+     * @param number the list of n to be store
+     */
+    function storeList(uint256[] memory number) public {
+        uint256 length = number.length;
+
+        for (uint256 i = 0; i < length; i++) {
+            if (i == 0) {
+                require(blockhash(number[0]) != 0x0, "blockhash(n) failed");
+            } else {
+                require(number[i] > number[i - 1], "blockhash(n) failed");
+            }
+
+            s_blockhashes[number[i]] = blockhash(number[i]);
+        }
+    }
+
+    /**
      * @notice stores blockhash of the earliest block still available through BLOCKHASH.
      */
     function storeEarliest() external {

@@ -43,16 +43,11 @@ interface VRFV2WrapperInterface {
      * @dev to request a random number.
      *
      * @param _sender is the target for fulfillRandomWords.
-     * @param _amount is the OKT amount consumer contract send to this contract.
      * @param _data is the abi encode for
      *      uint32 callbackGasLimit,
      *      uint16 requestConfirmations,
      *      uint32 numWords
      */
 
-    function charge(
-        address _sender,
-        uint256 _amount,
-        bytes calldata _data
-    ) external payable;
+    function charge(address _sender, bytes calldata _data) external payable;
 }

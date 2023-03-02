@@ -17,6 +17,7 @@ contract MockVRFCoordinatorV2 is
 {
     error GasPriceOverRange(uint256 gasPrice);
     error TooManyConsumers();
+    error OKTTransferFailed();
     error InsufficientBalance();
     error InvalidConsumer(uint64 subId, address consumer);
     error InvalidSubscription();
@@ -142,6 +143,8 @@ contract MockVRFCoordinatorV2 is
         // There are only 1e9*1e18 = 1e27 juels in existence, so the balance can fit in uint96 (2^96 ~ 7e28)
         uint96 balance; // Common OKT balance used for all consumer requests.
         uint64 reqCount; // For fee tiers
+        uint64 reqSuccessCount;
+        uint256 createTime;
     }
     struct SubscriptionConfig {
         address owner; // Owner can fund/withdraw/cancel the sub.
@@ -154,6 +157,17 @@ contract MockVRFCoordinatorV2 is
         // consumer is valid without reading all the consumers from storage.
         address[] consumers;
     }
+
+    struct SubscriptionInformation {
+        uint96 balance;
+        uint64 reqCount;
+        uint64 reqSuccessCount;
+        uint256 createTime;
+        address owner;
+        bool active;
+        address[] consumers;
+    }
+
     struct RequestCommitment {
         uint64 blockNum;
         uint64 subId;
@@ -360,7 +374,7 @@ contract MockVRFCoordinatorV2 is
         if (internalBalance < externalBalance) {
             uint256 amount = externalBalance - internalBalance;
 
-            (bool success, ) = payable(to).call{value: amount, gas: 8000}("");
+            (bool success, ) = payable(to).call{value: amount}("");
             require(success, "VRFCoordinatorV2::sendOKT: transfer OKT failed");
 
             emit FundsRecovered(to, amount);
@@ -479,7 +493,7 @@ contract MockVRFCoordinatorV2 is
             msg.sender,
             tx.origin
         );
-        BlockhashStoreInterface(BLOCKHASH_STORE).store(block.number - 1);
+
         s_consumers[msg.sender][subId] = nonce;
 
         return (requestId, preSeed);
@@ -591,9 +605,9 @@ contract MockVRFCoordinatorV2 is
             revert IncorrectCommitment();
         }
 
-        bytes32 blockHash = blockhash(rc.blockNum - 1);
+        bytes32 blockHash = blockhash(rc.blockNum);
         if (blockHash == bytes32(0)) {
-            blockHash = BLOCKHASH_STORE.getBlockhash(rc.blockNum - 1);
+            blockHash = BLOCKHASH_STORE.getBlockhash(rc.blockNum);
             if (blockHash == bytes32(0)) {
                 revert BlockhashNotInStore(rc.blockNum);
             }
@@ -668,7 +682,9 @@ contract MockVRFCoordinatorV2 is
 
         uint64 reqCount = s_subscriptions[rc.subId].reqCount;
         s_subscriptions[rc.subId].reqCount += 1;
-
+        if (success) {
+            s_subscriptions[rc.subId].reqSuccessCount += 1;
+        }
         uint96 payment = calculatePaymentAmount(
             startGas,
             s_config.gasAfterPaymentCalculation,
@@ -683,10 +699,9 @@ contract MockVRFCoordinatorV2 is
             value: payment,
             gas: 8000
         }("");
-        require(
-            transfer,
-            "VRFCoordinatorV2::fulfillRandomWords: transfer OKT failed"
-        );
+        if (!transfer) {
+            revert OKTTransferFailed();
+        }
         emit RandomWordsFulfilled(requestId, randomness, payment, success);
         return payment;
     }
@@ -706,19 +721,10 @@ contract MockVRFCoordinatorV2 is
 
     /**
      * @notice user call this function to add balance for subId.
-     *
-     * @param amount is the OKT amount user send to this contract.
      * @param subId is the target for add balance.
      */
-    function charge(uint256 amount, uint64 subId)
-        external
-        payable
-        nonReentrant
-    {
-        require(
-            msg.value >= amount,
-            "VRFCoordinatorV2::charge: send not enough okt"
-        );
+    function charge(uint64 subId) external payable nonReentrant {
+        uint256 amount = msg.value;
         if (s_subscriptionConfigs[subId].owner == address(0)) {
             revert InvalidSubscription();
         }
@@ -759,6 +765,49 @@ contract MockVRFCoordinatorV2 is
         );
     }
 
+    function getBatchSubscription(uint64 subId, uint64 amount)
+        external
+        view
+        returns (SubscriptionInformation[] memory)
+    {
+        if (amount >= subId) {
+            revert InvalidSubscription();
+        }
+        SubscriptionInformation[]
+            memory subscriptionInformation = new SubscriptionInformation[](
+                amount
+            );
+        for (uint64 i = 0; i < amount; i++) {
+            uint64 currentSubId = subId + i + 1 - amount;
+            subscriptionInformation[i] = SubscriptionInformation(
+                s_subscriptions[currentSubId].balance,
+                s_subscriptions[currentSubId].reqCount,
+                s_subscriptions[currentSubId].reqSuccessCount,
+                s_subscriptions[currentSubId].createTime,
+                s_subscriptionConfigs[currentSubId].owner,
+                !(s_subscriptionConfigs[currentSubId].owner == address(0)),
+                s_subscriptionConfigs[currentSubId].consumers
+            );
+        }
+        console.log(
+            "subscriptionInformation %s",
+            subscriptionInformation[0].balance
+        );
+        console.log(
+            "subscriptionInformation %s",
+            subscriptionInformation[0].balance
+        );
+        console.log(
+            "subscriptionInformation %s",
+            subscriptionInformation[0].balance
+        );
+        console.log(
+            "subscriptionInformation %s",
+            subscriptionInformation[0].balance
+        );
+        return subscriptionInformation;
+    }
+
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
@@ -771,7 +820,14 @@ contract MockVRFCoordinatorV2 is
         s_currentSubId++;
         uint64 currentSubId = s_currentSubId;
         address[] memory consumers = new address[](0);
-        s_subscriptions[currentSubId] = Subscription({balance: 0, reqCount: 0});
+        s_subscriptions[currentSubId] = Subscription({
+            balance: 0,
+            reqCount: 0,
+            reqSuccessCount: 0,
+            createTime: block.timestamp
+        });
+        console.log("block.timestamp  %s", block.timestamp);
+        console.log("block.number %s", block.number);
         s_subscriptionConfigs[currentSubId] = SubscriptionConfig({
             owner: msg.sender,
             requestedOwner: address(0),

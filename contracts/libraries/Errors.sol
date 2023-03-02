@@ -8,6 +8,7 @@ library Errors {
     error InsufficientBalance();
     error InvalidConsumer(uint64 subId, address consumer);
     error InvalidSubscription();
+    error OKTTransferFailed();
     error MustBeSubOwner(address owner);
     error PendingRequestExists();
     error MustBeRequestedOwner(address proposedOwner);

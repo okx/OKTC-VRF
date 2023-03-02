@@ -29,7 +29,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 abstract contract VRFV2WrapperConsumerBase is Ownable {
     VRFV2WrapperInterface public immutable VRF_V2_WRAPPER;
-    event RequestSent(uint256 requestId, uint32 numWords);
 
     struct RequestStatus {
         uint256 paid; // amount paid in OKT
@@ -76,7 +75,7 @@ abstract contract VRFV2WrapperConsumerBase is Ownable {
      *
      * @return requestId is the VRF V2 request ID of the newly created randomness request.
      */
-    function requestRandomness(
+    function requestRandomWords(
         uint32 _callbackGasLimit,
         uint16 _requestConfirmations,
         uint32 _numWords
@@ -84,9 +83,12 @@ abstract contract VRFV2WrapperConsumerBase is Ownable {
         uint256 requestPrice = VRF_V2_WRAPPER.calculateRequestPrice(
             _callbackGasLimit
         );
-        VRF_V2_WRAPPER.charge{value: msg.value}(
+        require(
+            address(this).balance > requestPrice,
+            "not enough requestPrice"
+        );
+        VRF_V2_WRAPPER.charge{value: requestPrice}(
             address(this),
-            requestPrice,
             abi.encode(_callbackGasLimit, _requestConfirmations, _numWords)
         );
         lastRequestId = VRF_V2_WRAPPER.lastRequestId();
