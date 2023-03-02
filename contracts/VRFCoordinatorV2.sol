@@ -4,7 +4,6 @@ pragma solidity ^0.8.7;
 import "./interfaces/VRFCoordinatorV2Interface.sol";
 import "./libraries/Errors.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./VRF.sol";
 
 contract VRFCoordinatorV2 is
@@ -46,22 +45,9 @@ contract VRFCoordinatorV2 is
     mapping(bytes32 => address) /* keyHash */ /* oracle */
         private s_provingKeys;
     bytes32[] private s_provingKeyHashes;
-    mapping(uint256 => RequestInformation) /* requestID */ /* commitment */
+    mapping(uint256 => bytes32) /* requestID */ /* commitment */
         private s_requestCommitments;
-    mapping(bytes32 => uint256) /* keyhash */ /* gasprice */
-        public s_gasPrice;
-
-    function cancelRequest(uint256 requestID) public nonReentrant {
-        require(
-            s_requestCommitments[requestID].blockNum +
-                MAX_REQUEST_CONFIRMATIONS <
-                block.number,
-            "Not TimeOut"
-        );
-        VRFConsumerBaseV2(s_requestCommitments[requestID].sender)
-            .rawCancelRequest(requestID);
-        delete s_requestCommitments[requestID];
-    }
+    mapping(bytes32 => uint256) /* keyhash */ /* gasprice */ public s_gasPrice;
 
     function initialize(address blockhashStore) public initializer {
         __Ownable2Step_init();
@@ -95,10 +81,9 @@ contract VRFCoordinatorV2 is
      * @notice Deregisters a proving key to an oracle.
      * @param publicProvingKey key that oracle can use to submit vrf fulfillments
      */
-    function deregisterProvingKey(uint256[2] calldata publicProvingKey)
-        external
-        onlyOwner
-    {
+    function deregisterProvingKey(
+        uint256[2] calldata publicProvingKey
+    ) external onlyOwner {
         bytes32 kh = hashOfKey(publicProvingKey);
         address oracle = s_provingKeys[kh];
         if (oracle == address(0)) {
@@ -123,11 +108,9 @@ contract VRFCoordinatorV2 is
      * @notice Returns the proving key hash key associated with this public key
      * @param publicKey the key to return the hash of
      */
-    function hashOfKey(uint256[2] memory publicKey)
-        public
-        pure
-        returns (bytes32)
-    {
+    function hashOfKey(
+        uint256[2] memory publicKey
+    ) public pure returns (bytes32) {
         return keccak256(abi.encode(publicKey));
     }
 
@@ -257,12 +240,9 @@ contract VRFCoordinatorV2 is
      * @dev Looping is bounded to MAX_CONSUMERS*(number of keyhashes).
      * @dev Used to disable subscription canceling while outstanding request are present.
      */
-    function pendingRequestExists(uint64 subId)
-        public
-        view
-        override
-        returns (bool)
-    {
+    function pendingRequestExists(
+        uint64 subId
+    ) public view override returns (bool) {
         SubscriptionConfig memory subConfig = s_subscriptionConfigs[subId];
         for (uint256 i = 0; i < subConfig.consumers.length; i++) {
             for (uint256 j = 0; j < s_provingKeyHashes.length; j++) {
@@ -272,7 +252,7 @@ contract VRFCoordinatorV2 is
                     subId,
                     s_consumers[subConfig.consumers[i]][subId]
                 );
-                if (s_requestCommitments[reqId].requestHash != 0) {
+                if (s_requestCommitments[reqId] != 0) {
                     return true;
                 }
             }
@@ -287,11 +267,7 @@ contract VRFCoordinatorV2 is
         external
         view
         override
-        returns (
-            uint16,
-            uint32,
-            bytes32[] memory
-        )
+        returns (uint16, uint32, bytes32[] memory)
     {
         return (
             s_config.minimumRequestConfirmations,
@@ -346,21 +322,16 @@ contract VRFCoordinatorV2 is
             nonce
         );
 
-        s_requestCommitments[requestId] = RequestInformation(
-            block.number,
-            msg.sender,
-            keccak256(
-                abi.encode(
-                    requestId,
-                    block.number,
-                    subId,
-                    callbackGasLimit,
-                    numWords,
-                    msg.sender
-                )
+        s_requestCommitments[requestId] = keccak256(
+            abi.encode(
+                requestId,
+                block.number,
+                subId,
+                callbackGasLimit,
+                numWords,
+                msg.sender
             )
         );
-
         emit RandomWordsRequested(
             keyHash,
             requestId,
@@ -384,7 +355,7 @@ contract VRFCoordinatorV2 is
      * @dev used to determine if a request is fulfilled or not
      */
     function getCommitment(uint256 requestId) external view returns (bytes32) {
-        return s_requestCommitments[requestId].requestHash;
+        return s_requestCommitments[requestId];
     }
 
     function computeRequestId(
@@ -451,11 +422,7 @@ contract VRFCoordinatorV2 is
     )
         private
         view
-        returns (
-            bytes32 keyHash,
-            uint256 requestId,
-            uint256 randomness
-        )
+        returns (bytes32 keyHash, uint256 requestId, uint256 randomness)
     {
         keyHash = hashOfKey(proof.pk);
         // Only registered proving keys are permitted.
@@ -464,7 +431,7 @@ contract VRFCoordinatorV2 is
             revert Errors.NoSuchProvingKey(keyHash);
         }
         requestId = uint256(keccak256(abi.encode(keyHash, proof.seed)));
-        bytes32 commitment = s_requestCommitments[requestId].requestHash;
+        bytes32 commitment = s_requestCommitments[requestId];
         if (commitment == 0) {
             revert Errors.NoCorrespondingRequest();
         }
@@ -526,11 +493,10 @@ contract VRFCoordinatorV2 is
      * @return payment amount billed to the subscription
      * @dev simulated offchain to determine if sufficient balance is present to fulfill the request
      */
-    function fulfillRandomWords(Proof memory proof, RequestCommitment memory rc)
-        external
-        nonReentrant
-        returns (uint96)
-    {
+    function fulfillRandomWords(
+        Proof memory proof,
+        RequestCommitment memory rc
+    ) external nonReentrant returns (uint96) {
         uint256 startGas = gasleft();
         (
             bytes32 keyHash,
@@ -561,7 +527,9 @@ contract VRFCoordinatorV2 is
 
         uint64 reqCount = s_subscriptions[rc.subId].reqCount;
         s_subscriptions[rc.subId].reqCount += 1;
-
+        if (success) {
+            s_subscriptions[rc.subId].reqSuccessCount += 1;
+        }
         uint96 payment = calculatePaymentAmount(
             startGas,
             s_config.gasAfterPaymentCalculation,
@@ -572,6 +540,7 @@ contract VRFCoordinatorV2 is
             revert Errors.InsufficientBalance();
         }
         s_subscriptions[rc.subId].balance -= payment;
+
         (bool transfer, ) = payable(s_provingKeys[keyHash]).call{
             value: payment,
             gas: 8000
@@ -621,7 +590,9 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function getSubscription(uint64 subId)
+    function getSubscription(
+        uint64 subId
+    )
         external
         view
         override
@@ -643,6 +614,32 @@ contract VRFCoordinatorV2 is
         );
     }
 
+    function getBatchSubscription(
+        uint64 subId,
+        uint64 amount
+    ) external view returns (SubscriptionInformation[] memory) {
+        if (amount >= subId) {
+            revert Errors.InvalidSubscription();
+        }
+        SubscriptionInformation[]
+            memory subscriptionInformation = new SubscriptionInformation[](
+                amount
+            );
+        for (uint64 i = 0; i < amount; i++) {
+            uint64 currentSubId = subId + i + 1 - amount;
+            subscriptionInformation[i] = SubscriptionInformation(
+                s_subscriptions[currentSubId].balance,
+                s_subscriptions[currentSubId].reqCount,
+                s_subscriptions[currentSubId].reqSuccessCount,
+                s_subscriptions[currentSubId].createTime,
+                s_subscriptionConfigs[currentSubId].owner,
+                !(s_subscriptionConfigs[currentSubId].owner == address(0)),
+                s_subscriptionConfigs[currentSubId].consumers
+            );
+        }
+        return subscriptionInformation;
+    }
+
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
@@ -655,7 +652,12 @@ contract VRFCoordinatorV2 is
         s_currentSubId++;
         uint64 currentSubId = s_currentSubId;
         address[] memory consumers = new address[](0);
-        s_subscriptions[currentSubId] = Subscription({balance: 0, reqCount: 0});
+        s_subscriptions[currentSubId] = Subscription({
+            balance: 0,
+            reqCount: 0,
+            reqSuccessCount: 0,
+            createTime: block.timestamp
+        });
         s_subscriptionConfigs[currentSubId] = SubscriptionConfig({
             owner: msg.sender,
             requestedOwner: address(0),
@@ -669,12 +671,10 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function requestSubscriptionOwnerTransfer(uint64 subId, address newOwner)
-        external
-        override
-        onlySubOwner(subId)
-        nonReentrant
-    {
+    function requestSubscriptionOwnerTransfer(
+        uint64 subId,
+        address newOwner
+    ) external override onlySubOwner(subId) nonReentrant {
         // Proposing to address(0) would never be claimable so don't need to check.
         if (s_subscriptionConfigs[subId].requestedOwner != newOwner) {
             s_subscriptionConfigs[subId].requestedOwner = newOwner;
@@ -689,11 +689,9 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function acceptSubscriptionOwnerTransfer(uint64 subId)
-        external
-        override
-        nonReentrant
-    {
+    function acceptSubscriptionOwnerTransfer(
+        uint64 subId
+    ) external override nonReentrant {
         if (s_subscriptionConfigs[subId].owner == address(0)) {
             revert Errors.InvalidSubscription();
         }
@@ -711,12 +709,10 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function addConsumer(uint64 subId, address consumer)
-        external
-        override
-        onlySubOwner(subId)
-        nonReentrant
-    {
+    function addConsumer(
+        uint64 subId,
+        address consumer
+    ) external override onlySubOwner(subId) nonReentrant {
         // Already maxed, cannot add any more consumers.
         if (s_subscriptionConfigs[subId].consumers.length == MAX_CONSUMERS) {
             revert Errors.TooManyConsumers();
@@ -739,12 +735,10 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function removeConsumer(uint64 subId, address consumer)
-        external
-        override
-        onlySubOwner(subId)
-        nonReentrant
-    {
+    function removeConsumer(
+        uint64 subId,
+        address consumer
+    ) external override onlySubOwner(subId) nonReentrant {
         if (s_consumers[consumer][subId] == 0) {
             revert Errors.InvalidConsumer(subId, consumer);
         }
@@ -768,22 +762,20 @@ contract VRFCoordinatorV2 is
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
-    function cancelSubscription(uint64 subId, address to)
-        external
-        override
-        onlySubOwner(subId)
-        nonReentrant
-    {
+    function cancelSubscription(
+        uint64 subId,
+        address to
+    ) external override onlySubOwner(subId) nonReentrant {
         if (pendingRequestExists(subId)) {
             revert Errors.PendingRequestExists();
         }
         cancelSubscriptionHelper(subId, to);
     }
 
-    function cancelSubscriptionHelper(uint64 subId, address to)
-        private
-        nonReentrant
-    {
+    function cancelSubscriptionHelper(
+        uint64 subId,
+        address to
+    ) private nonReentrant {
         SubscriptionConfig memory subConfig = s_subscriptionConfigs[subId];
         Subscription memory sub = s_subscriptions[subId];
         uint96 balance = sub.balance;

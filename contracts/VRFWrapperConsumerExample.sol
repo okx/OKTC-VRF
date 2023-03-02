@@ -15,8 +15,6 @@ contract VRFV2WrapperConsumerExample is VRFV2WrapperConsumerBase {
         VRFV2WrapperConsumerBase(_vrfV2Wrapper)
     {}
 
-    function cancelRequest(uint256 requestID) internal override {}
-
     function fulfillRandomWords(
         uint256 _requestId,
         uint256[] memory _randomWords

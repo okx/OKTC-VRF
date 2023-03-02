@@ -9,6 +9,8 @@ remix-compiler.config.js
 scripts/*
 !scripts/
 !scripts/deploy.js
+!scripts/FirstSubRequest.js
+!scripts/FirstDirectRequest.js
 !scripts/settings.json
 *_flat.sol
 

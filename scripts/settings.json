@@ -1,9 +1,9 @@
 {
   "VRFCoordinatorV2Config": {
     "minimumRequestConfirmations": 0,
-    "maxGasLimit": 500000000,
+    "maxGasLimit": 5000000,
     "maxGasPrice": 1e12,
-    "gasAfterPaymentCalculation": 31344,
+    "gasAfterPaymentCalculation": 50000,
     "feeConfig": [0, 1, 2, 3, 4, 4, 3, 2, 1]
   },
   "VRFCoordinatorV2ConstantVaribles": {
@@ -13,7 +13,7 @@
     "GAS_FOR_CALL_EXACT_CHECK": 5000
   },
   "VRFV2WrapperConfig": {
-    "minGasPrice": 1e5,
+    "minGasPrice": 1e9,
     "_wrapperGasOverhead": 50000,
     "_coordinatorGasOverhead": 50000,
     "_wrapperPremiumPercentage": 0,
@@ -25,7 +25,7 @@
   },
   "VRFCoordinatorV2ConsumerConstructor": {
     "callbackGasLimit": 500000,
-    "requestConfirmations": 20,
+    "requestConfirmations": 0,
     "numWords": 2
   },
   "Oracle": [
@@ -35,7 +35,8 @@
         "61227685902708872212821627162000922828158315951168054185898134848500438413470"
       ],
       "address": "0xb0351f36ee1188d933b35992889561f58e5cb2c0",
-      "gasprice": "maxGasLimit"
+      "gasprice": "1e10",
+      "keyhash": "0xafbffab6e68cb6699436d34fb0351f36ee1188d933b35992889561f58e5cb2c0"
     },
     {
       "pk": [
@@ -43,7 +44,24 @@
         "102872276086791070485978640711069249982173933905152708637992359357529517460946"
       ],
       "address": "0xfea06756f6e290f3a3122bacf2ca8f6d2f1e6955",
-      "gasprice": "maxGasLimit"
+      "gasprice": "2*1e10",
+      "keyhash": "0x042158abfa1748a71524546afea06756f6e290f3a3122bacf2ca8f6d2f1e6955"
+    },
+    {
+      "pk": [
+        "95789986408067354453079121096744315911933058858136120976341908590605365377448",
+        "71519377552395277315766246860939883603501108246011646861805019208932258625006"
+      ],
+      "address": "0x015df1387efa19a61bffa865e31b86c1748c7e9e",
+      "gasprice": "1e10"
+    },
+    {
+      "pk": [
+        "94939775245033832326980488868930494755886011133823374995671161867358791656913",
+        "25368444129726081678406687442300837328456147603851101567877810746163784161840"
+      ],
+      "address": "0xa91fb5fb4adb64a85e609782163d4c7d6b9da837",
+      "gasprice": "1e10"
     }
   ]
 }

@@ -86,12 +86,6 @@ contract mockVRFV2Wrapper is
     mapping(uint256 => Callback) /* requestID */ /* callback */
         public s_callbacks;
 
-    function cancelRequest(uint256 requestID) internal override {
-        VRFV2WrapperConsumerBase(s_callbacks[requestID].callbackAddress)
-            .rawCancelRequest(requestID);
-        delete s_callbacks[requestID];
-    }
-
     function initialize(address _coordinator) public initializer {
         __Ownable2Step_init();
         vrfCoordinator = _coordinator;

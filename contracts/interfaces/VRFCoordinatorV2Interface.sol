@@ -32,6 +32,8 @@ interface VRFCoordinatorV2Interface is TypeAndVersionInterface {
         // There are only 1e9*1e18 = 1e27 juels in existence, so the balance can fit in uint96 (2^96 ~ 7e28)
         uint96 balance; // Common OKT balance used for all consumer requests.
         uint64 reqCount; // For fee tiers
+        uint64 reqSuccessCount;
+        uint256 createTime;
     }
     struct SubscriptionConfig {
         address owner; // Owner can fund/withdraw/cancel the sub.
@@ -44,6 +46,16 @@ interface VRFCoordinatorV2Interface is TypeAndVersionInterface {
         // consumer is valid without reading all the consumers from storage.
         address[] consumers;
     }
+    struct SubscriptionInformation {
+        uint96 balance;
+        uint64 reqCount;
+        uint64 reqSuccessCount;
+        uint256 createTime;
+        address owner;
+        bool active;
+        address[] consumers;
+    }
+
     struct RequestCommitment {
         uint64 blockNum;
         uint64 subId;
@@ -51,11 +63,7 @@ interface VRFCoordinatorV2Interface is TypeAndVersionInterface {
         uint32 numWords;
         address sender;
     }
-    struct RequestInformation {
-        uint256 blockNum;
-        address sender;
-        bytes32 requestHash;
-    }
+
     event FundsRecovered(address to, uint256 amount);
     event OracleWithdraw(address to, uint256 amount);
     event SubscriptionCreated(uint64 indexed subId, address owner);

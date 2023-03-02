@@ -7,7 +7,6 @@ import "../interfaces/TypeAndVersionInterface.sol";
 import "../interfaces/VRFConsumerBaseV2.sol";
 import "../VRF.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "hardhat/console.sol";
 
 contract MockVRFCoordinatorV2 is
@@ -144,6 +143,8 @@ contract MockVRFCoordinatorV2 is
         // There are only 1e9*1e18 = 1e27 juels in existence, so the balance can fit in uint96 (2^96 ~ 7e28)
         uint96 balance; // Common OKT balance used for all consumer requests.
         uint64 reqCount; // For fee tiers
+        uint64 reqSuccessCount;
+        uint256 createTime;
     }
     struct SubscriptionConfig {
         address owner; // Owner can fund/withdraw/cancel the sub.
@@ -156,6 +157,17 @@ contract MockVRFCoordinatorV2 is
         // consumer is valid without reading all the consumers from storage.
         address[] consumers;
     }
+
+    struct SubscriptionInformation {
+        uint96 balance;
+        uint64 reqCount;
+        uint64 reqSuccessCount;
+        uint256 createTime;
+        address owner;
+        bool active;
+        address[] consumers;
+    }
+
     struct RequestCommitment {
         uint64 blockNum;
         uint64 subId;
@@ -164,11 +176,6 @@ contract MockVRFCoordinatorV2 is
         address sender;
     }
 
-    struct RequestInformation {
-        uint256 blockNum;
-        address sender;
-        bytes32 requestHash;
-    }
     mapping(address => mapping(uint64 => uint64)) /* consumer */ /* subId */ /* nonce */
         public s_consumers;
     mapping(uint64 => SubscriptionConfig) /* subId */ /* subscriptionConfig */
@@ -178,22 +185,10 @@ contract MockVRFCoordinatorV2 is
     mapping(bytes32 => address) /* keyHash */ /* oracle */
         public s_provingKeys;
     bytes32[] public s_provingKeyHashes;
-    mapping(uint256 => RequestInformation) /* requestID */ /* commitment */
+    mapping(uint256 => bytes32) /* requestID */ /* commitment */
         public s_requestCommitments;
     mapping(bytes32 => uint256) /* keyhash */ /* gasprice */
         public s_gasPrice;
-
-    function cancelRequest(uint256 requestID) public nonReentrant {
-        require(
-            s_requestCommitments[requestID].blockNum +
-                MAX_REQUEST_CONFIRMATIONS <
-                block.number,
-            "Not TimeOut"
-        );
-        VRFConsumerBaseV2(s_requestCommitments[requestID].sender)
-            .rawCancelRequest(requestID);
-        delete s_requestCommitments[requestID];
-    }
 
     function initialize(uint16 maxconsumer, address blockhashStore)
         public
@@ -406,7 +401,7 @@ contract MockVRFCoordinatorV2 is
                     subId,
                     s_consumers[subConfig.consumers[i]][subId]
                 );
-                if (s_requestCommitments[reqId].requestHash != 0) {
+                if (s_requestCommitments[reqId] != 0) {
                     return true;
                 }
             }
@@ -477,21 +472,16 @@ contract MockVRFCoordinatorV2 is
             nonce
         );
 
-        s_requestCommitments[requestId] = RequestInformation(
-            block.number,
-            msg.sender,
-            keccak256(
-                abi.encode(
-                    requestId,
-                    block.number,
-                    subId,
-                    callbackGasLimit,
-                    numWords,
-                    msg.sender
-                )
+        s_requestCommitments[requestId] = keccak256(
+            abi.encode(
+                requestId,
+                block.number,
+                subId,
+                callbackGasLimit,
+                numWords,
+                msg.sender
             )
         );
-
         emit RandomWordsRequested(
             keyHash,
             requestId,
@@ -515,7 +505,7 @@ contract MockVRFCoordinatorV2 is
      * @dev used to determine if a request is fulfilled or not
      */
     function getCommitment(uint256 requestId) external view returns (bytes32) {
-        return s_requestCommitments[requestId].requestHash;
+        return s_requestCommitments[requestId];
     }
 
     function computeRequestId(
@@ -595,7 +585,7 @@ contract MockVRFCoordinatorV2 is
             revert NoSuchProvingKey(keyHash);
         }
         requestId = uint256(keccak256(abi.encode(keyHash, proof.seed)));
-        bytes32 commitment = s_requestCommitments[requestId].requestHash;
+        bytes32 commitment = s_requestCommitments[requestId];
         if (commitment == 0) {
             revert NoCorrespondingRequest();
         }
@@ -692,7 +682,9 @@ contract MockVRFCoordinatorV2 is
 
         uint64 reqCount = s_subscriptions[rc.subId].reqCount;
         s_subscriptions[rc.subId].reqCount += 1;
-
+        if (success) {
+            s_subscriptions[rc.subId].reqSuccessCount += 1;
+        }
         uint96 payment = calculatePaymentAmount(
             startGas,
             s_config.gasAfterPaymentCalculation,
@@ -773,6 +765,49 @@ contract MockVRFCoordinatorV2 is
         );
     }
 
+    function getBatchSubscription(uint64 subId, uint64 amount)
+        external
+        view
+        returns (SubscriptionInformation[] memory)
+    {
+        if (amount >= subId) {
+            revert InvalidSubscription();
+        }
+        SubscriptionInformation[]
+            memory subscriptionInformation = new SubscriptionInformation[](
+                amount
+            );
+        for (uint64 i = 0; i < amount; i++) {
+            uint64 currentSubId = subId + i + 1 - amount;
+            subscriptionInformation[i] = SubscriptionInformation(
+                s_subscriptions[currentSubId].balance,
+                s_subscriptions[currentSubId].reqCount,
+                s_subscriptions[currentSubId].reqSuccessCount,
+                s_subscriptions[currentSubId].createTime,
+                s_subscriptionConfigs[currentSubId].owner,
+                !(s_subscriptionConfigs[currentSubId].owner == address(0)),
+                s_subscriptionConfigs[currentSubId].consumers
+            );
+        }
+        console.log(
+            "subscriptionInformation %s",
+            subscriptionInformation[0].balance
+        );
+        console.log(
+            "subscriptionInformation %s",
+            subscriptionInformation[0].balance
+        );
+        console.log(
+            "subscriptionInformation %s",
+            subscriptionInformation[0].balance
+        );
+        console.log(
+            "subscriptionInformation %s",
+            subscriptionInformation[0].balance
+        );
+        return subscriptionInformation;
+    }
+
     /**
      * @inheritdoc VRFCoordinatorV2Interface
      */
@@ -785,7 +820,14 @@ contract MockVRFCoordinatorV2 is
         s_currentSubId++;
         uint64 currentSubId = s_currentSubId;
         address[] memory consumers = new address[](0);
-        s_subscriptions[currentSubId] = Subscription({balance: 0, reqCount: 0});
+        s_subscriptions[currentSubId] = Subscription({
+            balance: 0,
+            reqCount: 0,
+            reqSuccessCount: 0,
+            createTime: block.timestamp
+        });
+        console.log("block.timestamp  %s", block.timestamp);
+        console.log("block.number %s", block.number);
         s_subscriptionConfigs[currentSubId] = SubscriptionConfig({
             owner: msg.sender,
             requestedOwner: address(0),

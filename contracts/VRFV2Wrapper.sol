@@ -84,12 +84,6 @@ contract VRFV2Wrapper is
     mapping(uint256 => Callback) /* requestID */ /* callback */
         public s_callbacks;
 
-    function cancelRequest(uint256 requestID) internal override {
-        VRFV2WrapperConsumerBase(s_callbacks[requestID].callbackAddress)
-            .rawCancelRequest(requestID);
-        delete s_callbacks[requestID];
-    }
-
     function initialize(address _coordinator) public initializer {
         __Ownable2Step_init();
         vrfCoordinator = _coordinator;
@@ -227,7 +221,7 @@ contract VRFV2Wrapper is
     }
 
     function calculateRequestPriceInternal(
-        uint256 _gas,
+        uint32 _gas,
         uint256 _requestGasPrice
     ) internal view returns (uint256) {
         uint256 baseFee = _requestGasPrice *
