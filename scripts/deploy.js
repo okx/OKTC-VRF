@@ -17,17 +17,14 @@ async function main() {
   await initAllContracts(
     BlockhashStoreAddress.address,
     VRFCoordinatorV2Address.address,
-    VRFCoordinatorV2Address,
     VRFV2WrapperAddress.address,
   );
   await setConfigAllContracts(
-    VRFCoordinatorV2Address,
     VRFCoordinatorV2Address.address,
     VRFV2WrapperAddress.address,
   );
 
   await createWrapperModuleConsumer(
-    VRFCoordinatorV2Address,
     VRFCoordinatorV2Address.address,
     VRFV2WrapperAddress.address,
   );
