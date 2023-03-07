@@ -1,24 +1,22 @@
 let { ethers } = require("hardhat");
-let fs = require("fs");
+let transparentProxy = require("./utils/transparentProxy");
 let settings = require("./settings.json");
 let ProxyAdmin = require("@openzeppelin/contracts/build/contracts/ProxyAdmin.json");
-let TransparentUpgradeableProxy = require("@openzeppelin/contracts/build/contracts/TransparentUpgradeableProxy.json");
 require("dotenv").config();
 
 async function main() {
   let proxyAdminAddress = await delpoyProxyAdmin();
   let BlockhashStoreAddress = await delpoyBlockhashStore();
-  let VRFCoordinatorV2Address = await delpoyVRFCoordinatorV2(
-    proxyAdminAddress.address,
+  let VRFCoordinatorV2Address = await delpoyAndInitializeVRFCoordinatorV2(
+    proxyAdminAddress,
+    BlockhashStoreAddress,
   );
 
-  let VRFV2WrapperAddress = await delpoyVRFV2Wrapper(proxyAdminAddress.address);
-
-  await initAllContracts(
-    BlockhashStoreAddress.address,
-    VRFCoordinatorV2Address.address,
-    VRFV2WrapperAddress.address,
+  let VRFV2WrapperAddress = await delpoyAndInitializeVRFV2Wrapper(
+    proxyAdminAddress,
+    VRFCoordinatorV2Address,
   );
+
   await setConfigAllContracts(
     VRFCoordinatorV2Address.address,
     VRFV2WrapperAddress.address,
@@ -56,88 +54,44 @@ async function delpoyBlockhashStore() {
   return BlockhashStore;
 }
 
-async function delpoyVRFCoordinatorV2(proxyAdmin) {
-  console.log("-------------- start delpoyVRFCoordinatorV2 --------------");
-  let VRFCoordinatorV2Factory = await ethers.getContractFactory(
-    "VRFCoordinatorV2",
-  );
-  let VRFCoordinatorV2 = await VRFCoordinatorV2Factory.deploy();
-  await VRFCoordinatorV2.deployed();
-
-  let Proxy = await ethers.getContractFactory(
-    TransparentUpgradeableProxy.abi,
-    TransparentUpgradeableProxy.bytecode,
-  );
-
-  let transparentUpgradeableProxy = await Proxy.deploy(
-    VRFCoordinatorV2.address,
-    proxyAdmin,
-    "0x",
-  );
-  await transparentUpgradeableProxy.deployed();
-
-  console.log(
-    "VRFCoordinatorV2ImplementContract deployed to " + VRFCoordinatorV2.address,
-  );
-  console.log(
-    "VRFCoordinatorV2ProxyContract deployed to " +
-    transparentUpgradeableProxy.address,
-  );
-  console.log("-------------- finish delpoyVRFCoordinatorV2 --------------\n");
-  return transparentUpgradeableProxy;
-}
-
-async function delpoyVRFV2Wrapper(proxyAdmin) {
-  console.log("-------------- start delpoyVRFV2Wrapper --------------");
-  let VRFV2WrapperFactory = await ethers.getContractFactory("VRFV2Wrapper");
-  let VRFV2Wrapper = await VRFV2WrapperFactory.deploy();
-  await VRFV2Wrapper.deployed();
-
-  let Proxy = await ethers.getContractFactory(
-    TransparentUpgradeableProxy.abi,
-    TransparentUpgradeableProxy.bytecode,
-  );
-
-  let transparentUpgradeableProxy = await Proxy.deploy(
-    VRFV2Wrapper.address,
-    proxyAdmin,
-    "0x",
-  );
-  await transparentUpgradeableProxy.deployed();
-  console.log(
-    "VRFV2WrapperImplementContract deployed to " + VRFV2Wrapper.address,
-  );
-  console.log(
-    "VRFV2WrapperProxyContract deployed to " +
-    transparentUpgradeableProxy.address,
-  );
-  console.log("-------------- finish delpoyVRFV2Wrapper --------------\n");
-  return transparentUpgradeableProxy;
-}
-
-async function initAllContracts(
+async function delpoyAndInitializeVRFCoordinatorV2(
+  proxyAdmin,
   BlockhashStoreAddress,
-  VRFCoordinatorV2Address,
-  VRFV2WrapperAddressAddress,
 ) {
-  let VRFCoordinatorV2 = await ethers.getContractFactory("VRFCoordinatorV2");
-  let VRFV2Wrapper = await ethers.getContractFactory("VRFV2Wrapper");
+  console.log("-------------- start delpoyVRFCoordinatorV2 --------------");
 
-  let VRFCoordinatorV2Proxy = await VRFCoordinatorV2.attach(
-    VRFCoordinatorV2Address,
+  let VRFCoordinatorV2 = await transparentProxy.deployProxy({
+    implementationFactory: "VRFCoordinatorV2",
+    initializeParams: [BlockhashStoreAddress.address],
+    proxyAdmin: proxyAdmin,
+  });
+
+  await VRFCoordinatorV2.getConfig();
+
+  console.log(
+    "VRFCoordinatorV2ProxyContract deployed to " + VRFCoordinatorV2.address,
   );
-  let VRFV2WrapperProxy = await VRFV2Wrapper.attach(VRFV2WrapperAddressAddress);
 
-  console.log("-------------- start initializing --------------");
+  console.log("-------------- finish delpoyVRFCoordinatorV2 --------------\n");
+  return VRFCoordinatorV2;
+}
 
-  await (await VRFCoordinatorV2Proxy.initialize(BlockhashStoreAddress)).wait();
-  console.log("VRFCoordinatorV2 initialized");
+async function delpoyAndInitializeVRFV2Wrapper(
+  proxyAdmin,
+  VRFCoordinatorV2Address,
+) {
+  console.log("-------------- start delpoyVRFV2Wrapper --------------");
 
-  await (await VRFV2WrapperProxy.initialize(VRFCoordinatorV2Address)).wait();
-  console.log("VRFV2Wrapper initialized");
+  let VRFV2Wrapper = await transparentProxy.deployProxy({
+    implementationFactory: "VRFV2Wrapper",
+    initializeParams: [VRFCoordinatorV2Address.address],
+    proxyAdmin: proxyAdmin,
+  });
 
-  console.log("-------------- finish initializing --------------\n");
-  return VRFCoordinatorV2Proxy, VRFV2WrapperProxy;
+
+  console.log("VRFV2WrapperProxyContract deployed to " + VRFV2Wrapper.address);
+  console.log("-------------- finish delpoyVRFV2Wrapper --------------\n");
+  return VRFV2Wrapper;
 }
 
 async function setConfigAllContracts(
@@ -163,7 +117,8 @@ async function setConfigAllContracts(
       settings.VRFCoordinatorV2Config.feeConfig,
     )
   ).wait();
-
+  console.log(await VRFCoordinatorV2Proxy.getConfig());
+  console.log(await VRFCoordinatorV2Proxy.getFeeConfig());
   console.log("VRFCoordinatorV2 has setted config");
 
   for (let i = 0; i < 4; i++) {
@@ -192,6 +147,7 @@ async function setConfigAllContracts(
     )
   ).wait();
 
+  console.log(await VRFV2WrapperProxy.getConfig());
   console.log("VRFV2Wrapper has setted config");
   console.log("-------------- finish setConfig --------------\n");
 
@@ -212,10 +168,9 @@ async function createSubModuleConsumer(VRFCoordinatorV2Address) {
   console.log("Consumer's sub has created and the SubId is " + consumerSubId);
 
   await (
-    await VRFCoordinatorV2Proxy.charge(
-      consumerSubId,
-      { value: ethers.utils.parseUnits("0.001") },
-    )
+    await VRFCoordinatorV2Proxy.charge(consumerSubId, {
+      value: ethers.utils.parseUnits("0.001"),
+    })
   ).wait();
   console.log("Has charge 0.001 OKT for SubId " + consumerSubId);
 
@@ -272,10 +227,9 @@ async function createWrapperModuleConsumer(
   );
 
   await (
-    await VRFCoordinatorV2Proxy.charge(
-      wrapperSubId,
-      { value: ethers.utils.parseUnits("0.001") },
-    )
+    await VRFCoordinatorV2Proxy.charge(wrapperSubId, {
+      value: ethers.utils.parseUnits("0.001"),
+    })
   ).wait();
   console.log("Has charge 0.001 OKT for SubId " + wrapperSubId);
 

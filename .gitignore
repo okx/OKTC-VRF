@@ -8,6 +8,7 @@ remix-compiler.config.js
 .env
 scripts/*
 !scripts/
+!scripts/utils/
 !scripts/deploy.js
 !scripts/FirstSubRequest.js
 !scripts/FirstDirectRequest.js
