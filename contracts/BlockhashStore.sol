@@ -43,14 +43,8 @@ contract BlockhashStore {
      */
     function storeList(uint256[] memory number) public {
         uint256 length = number.length;
-
         for (uint256 i = 0; i < length; i++) {
-            if (i == 0) {
-                require(blockhash(number[0]) != 0x0, "blockhash(n) failed");
-            } else {
-                require(number[i] > number[i - 1], "blockhash(n) failed");
-            }
-
+            require(blockhash(number[i]) != 0x0, "blockhash(n) failed");
             s_blockhashes[number[i]] = blockhash(number[i]);
         }
     }
